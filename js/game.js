@@ -399,7 +399,7 @@ function move(dx) {
   if (nl !== lane) {
     lane = nl;
     tilt = dx * 0.18;
-    SFX.play('lane', { volume: 0.65 });
+    if (!mode && !pw) SFX.play('lane', { volume: 0.65 });
   }
 }
 function jump() {
