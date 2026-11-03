@@ -37,6 +37,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .menu-row{display:flex;gap:3cqw}
 #best{font-size:2.1cqh;color:#9fb3e0;letter-spacing:.08em;text-shadow:0 .2cqh 0 #000}
 .credit{font-size:1.8cqh;color:#7f93bf;letter-spacing:.1em;text-align:center;padding:0 4cqw;text-shadow:0 .2cqh 0 #000}
+.code-tag{position:absolute;right:2.6cqw;bottom:1.4cqh;font-size:1.45cqh;font-weight:800;letter-spacing:.05em;color:#64789f;opacity:.9;white-space:nowrap;pointer-events:none;text-shadow:0 .2cqh 0 #000}
 .mode-chip{border:.22cqh solid rgba(255,210,63,.55);background:rgba(8,14,40,.8);color:#ffd23f;font-family:inherit;font-weight:900;font-size:2.1cqh;letter-spacing:.08em;border-radius:99px;padding:.7cqh 3.6cqw;cursor:pointer;white-space:nowrap;transition:transform .08s}
 .mode-chip:active{transform:scale(.96)}
 #playHint{font-size:2.1cqh;color:#ffd23f;letter-spacing:.1em;background:rgba(8,14,40,.78);border:.2cqh solid rgba(255,210,63,.45);border-radius:99px;padding:.7cqh 3.4cqw;white-space:nowrap;max-width:92cqw;overflow:hidden;text-overflow:ellipsis}
