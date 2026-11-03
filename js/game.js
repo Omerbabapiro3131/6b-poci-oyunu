@@ -107,7 +107,6 @@ let mode = null, modeNext = 100, modeStars = 0, modeStarsTotal = 0;
 let chase = null, offer = null, contN = 0, bestPrev = 0, recDone = false;
 let flash = 0, shake = 0, hitBy = null, caughtT = 0, overT = 0;
 let modeMusic = null, pwLoop = null, deathSnd = null, lastCoinSfx = 0;
-let bgMusic = null, bgOn = false;
 
 /* ---------- UI ---------- */
 function setScreen(name) {
@@ -176,19 +175,6 @@ function startRun() {
 function stopGameAudio() {
   if (modeMusic) { modeMusic.stop(0); modeMusic = null; }
   if (pwLoop) { pwLoop.stop(0); pwLoop = null; }
-  if (bgMusic) { bgMusic.stop(0); bgMusic = null; bgOn = false; }
-}
-
-function syncBgMusic() {
-  const want = st === 'play' && !mode && !pw;
-  if (want === bgOn) return;
-  bgOn = want;
-  if (want) {
-    if (!bgMusic) bgMusic = SFX.loop('yara', { volume: 0.5 });
-    else if (bgMusic.el) bgMusic.el.play().catch(() => {});
-  } else if (bgMusic && bgMusic.el) {
-    bgMusic.el.pause();
-  }
 }
 
 function goMenu() {
@@ -1160,7 +1146,6 @@ function loop(now) {
   else if (st === 'hit') updateHit(dt);
   else if (st === 'over') caughtT = 1;
   else if (st === 'menu') menuScroll += dt * 9;
-  syncBgMusic();
   render(dt);
 }
 requestAnimationFrame(loop);
