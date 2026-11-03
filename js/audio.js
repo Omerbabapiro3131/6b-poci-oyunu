@@ -4,7 +4,8 @@ const SFX = (() => {
     mode: 'assets/audio/boostlu_poci.mp3',
     ders: 'assets/audio/ders_bos.mp3',
     alo: 'assets/audio/alo_arif.mp3',
-    dikidis: 'assets/audio/dikidis.mp3'
+    dikidis: 'assets/audio/dikidis.mp3',
+    yara: 'assets/audio/yara_p4.mp3'
   };
   let enabled = true;
   let ac = null;
