@@ -2,7 +2,8 @@ const SFX = (() => {
   const SRC = {
     lane: 'assets/audio/degistiren.mp3',
     mode: 'assets/audio/boostlu_poci.mp3',
-    ders: 'assets/audio/ders_bos.mp3',
+    ders: 'assets/audio/pexian.mp3',
+    jole: 'assets/audio/jole_music.mp3',
     alo: 'assets/audio/alo_arif.mp3',
     dikidis: 'assets/audio/dikidis.mp3'
   };
@@ -156,6 +157,19 @@ const SFX = (() => {
       case 'whoosh':
         noiseBurst(0.5, 0.16, 2600);
         tone(180, 720, 0.45, 'sawtooth', 0.07);
+        break;
+      case 'punch':
+        noiseBurst(0.2, 0.36, 1000);
+        tone(130, 44, 0.3, 'sawtooth', 0.22);
+        break;
+      case 'swing':
+        noiseBurst(0.1, 0.1, 3200);
+        tone(640, 220, 0.14, 'triangle', 0.05);
+        break;
+      case 'seyit':
+        tone(55, 32, 1.1, 'sawtooth', 0.2);
+        tone(196, 98, 0.7, 'square', 0.05);
+        noiseBurst(0.25, 0.18, 500);
         break;
       case 'lose':
         tone(320, 120, 0.5, 'sawtooth', 0.1);
