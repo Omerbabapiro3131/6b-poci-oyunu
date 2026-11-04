@@ -106,6 +106,9 @@ body.mode-board #hud.on ~ #touch{display:flex}
 
 #over{background:linear-gradient(180deg,rgba(4,7,16,.05) 34%,rgba(4,7,16,.9) 76%);padding-top:6cqh;padding-bottom:4cqh;z-index:15}
 .over-title{font-size:6.2cqh;color:#fff;text-shadow:0 .7cqh 0 #7a1010,0 0 4cqh rgba(255,80,40,.75);transform:rotate(-3deg);letter-spacing:-.01em}
+.over-title.beat{font-size:4.6cqh;color:#ffe7cf;letter-spacing:-.01em;max-width:96cqw;white-space:nowrap;animation:beatin .45s cubic-bezier(.2,1.5,.4,1) both}
+.over-title.beat::after{content:"CANLANMA YOK";display:block;margin-top:1.1cqh;font-size:2cqh;letter-spacing:.28em;color:#ff8d7c;text-shadow:0 .2cqh 0 #2a0303;transform:rotate(1.4deg)}
+@keyframes beatin{0%{opacity:0;transform:rotate(-9deg) scale(.4)}70%{opacity:1;transform:rotate(-1deg) scale(1.06)}100%{opacity:1;transform:rotate(-3deg) scale(1)}}
 .over-panel{width:100%;display:flex;flex-direction:column;align-items:center;gap:3.2cqh}
 .stats{display:flex;gap:3cqw;justify-content:center}
 .stat{background:rgba(10,16,36,.82);border:.25cqh solid #3d5aa8;border-radius:2.2cqh;padding:1.4cqh 4.4cqw;display:flex;flex-direction:column;align-items:center;gap:.5cqh;min-width:34cqw}
