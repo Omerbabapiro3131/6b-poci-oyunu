@@ -2123,33 +2123,49 @@ updateHud();
 
 /* ---------- uygulama olarak yükle (PWA) ---------- */
 const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-let installEvt = null;
+const iosDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+let installEvt = window.__bip || null;
+let installWaiters = [];
 
-function installHelp() {
-  const ua = navigator.userAgent;
-  let body;
-  if (standalone) {
-    body = 'Zaten uygulama olarak açıksın; bu pencere tarayıcı sekmesi değil.';
-  } else if (/iPhone|iPad|iPod/i.test(ua)) {
-    body = "Safari'de alttaki <b>Paylaş</b> düğmesine basıp <b>Ana Ekrana Ekle</b>'yi seç.";
-  } else if (/Android/i.test(ua)) {
-    body = "<b>Chrome menüsü → Uygulamayı yükle</b> (ya da <b>Ana ekrana ekle</b>). Simge telefonuna kurulur.";
-  } else if (/Firefox/i.test(ua)) {
-    body = "Firefox kurulum penceresini desteklemiyor. <b>Chrome / Edge / Opera</b> ile aç, adres çubuğundaki <b>Yükle</b> simgesine bas.";
-  } else {
-    body = "Adres çubuğunun sağındaki <b>Yükle</b> simgesine bas. Görünmüyorsa <b>Chrome menüsü → Uygulamayı yükle</b>.";
-  }
-  openModal('<h2>UYGULAMA OLARAK KUR</h2><p>' + body + '</p><p>Kurulumda EXE/APK inmez; oyun simge olarak ana ekrana eklenir ve internetsiz de açılır.</p><button class="b b1" id="insClose">TAMAM</button>');
+function bip(e) {
+  e.preventDefault();
+  installEvt = e;
+  try { localStorage.removeItem('sixb_installed'); } catch (err) {}
+  $('installBtn').hidden = false;
+  const w = installWaiters;
+  installWaiters = [];
+  for (const f of w) f(e);
+}
+addEventListener('beforeinstallprompt', bip);
+
+function iosHelp() {
+  openModal('<h2>UYGULAMA OLARAK KUR</h2><p>Safari\'de alttaki <b>Paylaş</b> düğmesine basıp <b>Ana Ekrana Ekle</b>\'yi seç.</p><button class="b b1" id="insClose">TAMAM</button>');
   $('insClose').onclick = closeModal;
 }
+function waitInstall(ms) {
+  return new Promise(res => {
+    if (installEvt) { res(installEvt); return; }
+    const f = e => { clearTimeout(t); res(e); };
+    installWaiters.push(f);
+    const t = setTimeout(() => {
+      installWaiters = installWaiters.filter(x => x !== f);
+      res(null);
+    }, ms);
+  });
+}
 async function promptInstall() {
-  const evt = installEvt;
-  if (!evt) { installHelp(); return; }
+  let evt = installEvt;
+  if (!evt) evt = await waitInstall(2000);
+  if (!evt) {
+    if (iosDevice) iosHelp();
+    return;
+  }
   installEvt = null;
+  window.__bip = null;
   try {
-    evt.prompt();
+    const p = evt.prompt();
+    if (p && p.catch) p.catch(() => {});
   } catch (e) {
-    installHelp();
     return;
   }
   try {
@@ -2160,13 +2176,6 @@ async function promptInstall() {
     }
   } catch (e) {}
 }
-
-addEventListener('beforeinstallprompt', e => {
-  e.preventDefault();
-  installEvt = e;
-  try { localStorage.removeItem('sixb_installed'); } catch (e) {}
-  $('installBtn').hidden = false;
-});
 addEventListener('appinstalled', () => {
   installEvt = null;
   try { localStorage.setItem('sixb_installed', '1'); } catch (e) {}
@@ -2174,10 +2183,11 @@ addEventListener('appinstalled', () => {
 });
 $('installBtn').onclick = promptInstall;
 try {
+  if (installEvt) localStorage.removeItem('sixb_installed');
   if (standalone || localStorage.getItem('sixb_installed') === '1') $('installBtn').hidden = true;
 } catch (e) {}
 if ('serviceWorker' in navigator) {
-  addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+  navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
 })();
