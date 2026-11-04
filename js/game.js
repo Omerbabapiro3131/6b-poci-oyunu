@@ -153,7 +153,7 @@ function resetRun() {
   chase = null; offer = null; contN = 0; recDone = false;
   flash = 0; shake = 0; hitBy = null; caughtT = 0; overT = 0;
   beat = null; beatOver = false;
-  seyitNext = 200 + Math.random() * 120;
+  seyitNext = 60 + Math.random() * 80;
   bestPrev = scoreBest;
   $('offer').classList.remove('on');
   $('modeBanner').classList.remove('on');
@@ -216,7 +216,7 @@ function togglePause() {
 /* ---------- spawn ---------- */
 function spawnRow(d) {
   if (!mode && run >= seyitNext) {
-    seyitNext = run + 540 + Math.random() * 420;
+    seyitNext = run + 120 + Math.random() * 120;
     objs.push({ ty: 'seyit', lane: rnd([-1, 0, 1]), d });
     return;
   }
@@ -299,7 +299,7 @@ function endMode() {
   clearNear(42);
   mode = null;
   modeNext = coins + 100;
-  seyitNext = Math.max(seyitNext, run + 260);
+  seyitNext = Math.max(seyitNext, run + 180);
   $('modeBanner').classList.remove('on');
   showToast('modeEnd');
   shake = 1.2;
@@ -374,7 +374,7 @@ function continueRun() {
   contN++;
   hideOffer();
   clearNear(42);
-  seyitNext = Math.max(seyitNext, run + 600);
+  seyitNext = Math.max(seyitNext, run + 320);
   hitBy = null;
   inv = 2.2;
   flash = 0.6;
