@@ -173,7 +173,6 @@ function startRun() {
   resetRun();
   st = 'play';
   setScreen(null);
-  hideInstallBar();
   toggleHud(true);
   chase = { t: 0 };
   updateHud();
@@ -196,7 +195,6 @@ function goMenu() {
   setScreen('menu');
   toggleHud(false);
   updateBest();
-  setTimeout(showInstallBar, 1300);
 }
 
 function giveUp() {
@@ -2069,6 +2067,7 @@ for (const el of document.querySelectorAll('.mode-btn')) {
     SFX.effect('ui');
     setScreen('menu');
     updateBest();
+    maybeAutoInstall();
   };
 }
 $('modeChip').onclick = () => { SFX.effect('ui'); setScreen('modes'); };
@@ -2127,17 +2126,6 @@ updateHud();
 const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 let installEvt = null;
 
-function installOff() {
-  try { return localStorage.getItem('sixb_install_off') === '1'; } catch (e) { return false; }
-}
-function hideInstallBar() { $('installBar').classList.remove('on'); }
-let installBarTimer = 0;
-function showInstallBar() {
-  if (standalone || installOff() || !installEvt || st !== 'menu') return;
-  $('installBar').classList.add('on');
-  clearTimeout(installBarTimer);
-  installBarTimer = setTimeout(hideInstallBar, 12000);
-}
 function installHelp() {
   const ua = navigator.userAgent;
   let body;
@@ -2156,7 +2144,6 @@ function installHelp() {
   $('insClose').onclick = closeModal;
 }
 async function promptInstall() {
-  hideInstallBar();
   const evt = installEvt;
   if (!evt) { installHelp(); return; }
   installEvt = null;
@@ -2169,27 +2156,33 @@ async function promptInstall() {
   try {
     const res = await evt.userChoice;
     if (res && res.outcome === 'accepted') {
-      try { localStorage.setItem('sixb_install_off', '1'); } catch (e) {}
+      try { localStorage.setItem('sixb_installed', '1'); } catch (e) {}
       $('installBtn').hidden = true;
     }
   } catch (e) {}
+}
+function maybeAutoInstall() {
+  if (standalone || !installEvt) return;
+  try {
+    if (sessionStorage.getItem('sixb_prompted') === '1') return;
+    sessionStorage.setItem('sixb_prompted', '1');
+  } catch (e) {}
+  promptInstall();
 }
 
 addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   installEvt = e;
-  if (st === 'menu') setTimeout(showInstallBar, 600);
 });
 addEventListener('appinstalled', () => {
   installEvt = null;
-  try { localStorage.setItem('sixb_install_off', '1'); } catch (e) {}
-  hideInstallBar();
+  try { localStorage.setItem('sixb_installed', '1'); } catch (e) {}
   $('installBtn').hidden = true;
 });
 $('installBtn').onclick = promptInstall;
-$('installGo').onclick = promptInstall;
-$('installNo').onclick = () => { hideInstallBar(); try { localStorage.setItem('sixb_install_off', '1'); } catch (e) {} };
-if (standalone) $('installBtn').hidden = true;
+try {
+  if (standalone || localStorage.getItem('sixb_installed') === '1') $('installBtn').hidden = true;
+} catch (e) {}
 if ('serviceWorker' in navigator) {
   addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
 }
