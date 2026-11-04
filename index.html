@@ -7,6 +7,12 @@
 <meta name="theme-color" content="#05080f">
 <meta name="description" content="6/B RUN — Poçilerden kaçış. 6/B Studios yapımı ücretsiz koşu oyunu.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23ffc42e'/%3E%3Ccircle cx='32' cy='32' r='24' fill='%230a1026'/%3E%3Ctext x='32' y='42' font-family='Arial Black,Arial' font-size='22' font-weight='900' fill='%23fff' text-anchor='middle'%3E6/B%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="6/B RUN">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="assets/icons/icon-180.png">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -67,7 +73,7 @@
   </div>
 
   <div class="scr" id="menu">
-    <div class="code-tag">BU SİTE 2.541 SATIR KOD</div>
+    <div class="code-tag">BU SİTE 2.734 SATIR KOD</div>
     <div class="menu-top">
       <div class="logo">6/B <b>RUN</b></div>
       <div class="tag">POÇİLERDEN KAÇIŞ</div>
@@ -79,6 +85,7 @@
         <button class="b b2 small" id="setBtn">AYARLAR</button>
       </div>
       <button class="mode-chip" id="modeChip">MOD: TELEFON</button>
+      <button class="mode-chip install" id="installBtn">UYGULAMA OLARAK YÜKLE</button>
       <div id="playHint">KAYDIR VEYA DOKUN</div>
       <div id="best">REKOR: 0 m · 6/B STUDIOS</div>
       <div class="credit">6/B STUDIOS PATRİCK JÖLELERİNİ SUNAR</div>
@@ -97,6 +104,16 @@
         <button class="b b2" id="home">ANA MENÜ</button>
       </div>
     </div>
+  </div>
+
+  <div id="installBar">
+    <img src="assets/icons/icon-192.png" alt="">
+    <div class="ib-txt">
+      <b>6/B RUN'ı kur</b>
+      <small>Kendi penceresinde, internetsiz açılır</small>
+    </div>
+    <button id="installGo">YÜKLE</button>
+    <button id="installNo" aria-label="Kapat">✕</button>
   </div>
 
   <div id="modal" class="modal"><div class="panel" id="mp"></div></div>
