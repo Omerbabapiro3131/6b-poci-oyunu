@@ -1,0 +1,21 @@
+{
+  "id": "./",
+  "name": "6/B RUN – Poçilerden Kaçış",
+  "short_name": "6/B RUN",
+  "description": "6/B Studios yapımı koşu oyunu. Poçilerden kaç, konuşma sınavından sağ çık.",
+  "lang": "tr",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "portrait",
+  "background_color": "#05080f",
+  "theme_color": "#05080f",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
