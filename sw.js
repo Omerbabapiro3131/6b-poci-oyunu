@@ -1,4 +1,4 @@
-const CACHE = 'sixb-run-v7';
+const CACHE = 'sixb-run-v8';
 
 const CORE = [
   './index.html',
@@ -6,10 +6,6 @@ const CORE = [
   './css/style.css',
   './js/audio.js',
   './js/game.js',
-  './assets/icons/icon-180.png',
-  './assets/icons/icon-192.png',
-  './assets/icons/icon-512.png',
-  './assets/icons/icon-maskable-512.png',
   './assets/img/duran.png',
   './assets/img/kosan.png',
   './assets/img/poci.png',
@@ -26,7 +22,11 @@ function put(req, res) {
 }
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));
+  e.waitUntil((async () => {
+    const c = await caches.open(CACHE);
+    await Promise.all(CORE.map(u => c.add(u).catch(() => {})));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', e => {
