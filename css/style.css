@@ -40,6 +40,16 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .code-tag{position:absolute;right:2.6cqw;bottom:1.4cqh;font-size:1.45cqh;font-weight:800;letter-spacing:.05em;color:#64789f;opacity:.9;white-space:nowrap;pointer-events:none;text-shadow:0 .2cqh 0 #000}
 .mode-chip{border:.22cqh solid rgba(255,210,63,.55);background:rgba(8,14,40,.8);color:#ffd23f;font-family:inherit;font-weight:900;font-size:2.1cqh;letter-spacing:.08em;border-radius:99px;padding:.7cqh 3.6cqw;cursor:pointer;white-space:nowrap;transition:transform .08s}
 .mode-chip:active{transform:scale(.96)}
+.mode-chip.install{font-size:1.9cqh;color:#cfe0ff;border-color:rgba(100,136,255,.7);background:rgba(10,20,52,.85)}
+#installBar{position:absolute;left:50%;bottom:3.2cqh;transform:translate(-50%,16cqh);z-index:30;width:91cqw;display:flex;align-items:center;gap:2.2cqw;padding:1cqh 2.4cqw;border-radius:2.2cqh;background:linear-gradient(#22346b,#0d1633);border:.3cqh solid #6488ff;box-shadow:0 1.4cqh 4cqh rgba(0,0,0,.62);opacity:0;pointer-events:none;transition:transform .32s cubic-bezier(.2,1.4,.4,1),opacity .25s}
+#installBar.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+#installBar img{width:7cqh;height:7cqh;border-radius:1.5cqh;flex:none;box-shadow:0 .3cqh .8cqh rgba(0,0,0,.5)}
+.ib-txt{display:flex;flex-direction:column;gap:.3cqh;min-width:0;flex:1}
+.ib-txt b{font-size:2.1cqh;color:#fff;line-height:1.15;white-space:nowrap}
+.ib-txt small{font-size:1.6cqh;color:#9fb3e0;font-weight:800;line-height:1.25}
+#installGo{flex:none;border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:1.95cqh;letter-spacing:.04em;color:#141d3a;background:linear-gradient(#ffd84a,#f0a800);border-radius:99px;padding:.95cqh 2.8cqw;box-shadow:0 .45cqh 0 #9c6400}
+#installGo:active{transform:scale(.95)}
+#installNo{flex:none;border:0;background:transparent;color:#9fb3e0;font-family:inherit;font-weight:900;font-size:2.6cqh;cursor:pointer;padding:.3cqh 1cqw;line-height:1}
 #playHint{font-size:2.1cqh;color:#ffd23f;letter-spacing:.1em;background:rgba(8,14,40,.78);border:.2cqh solid rgba(255,210,63,.45);border-radius:99px;padding:.7cqh 3.4cqw;white-space:nowrap;max-width:92cqw;overflow:hidden;text-overflow:ellipsis}
 
 /* ---------- mode select ---------- */
