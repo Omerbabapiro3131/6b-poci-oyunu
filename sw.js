@@ -1,8 +1,8 @@
-const CACHE = 'sixb-run-v9';
+const CACHE = 'sixb-run-v10';
 
 const CORE = [
   './index.html',
-  './manifest.webmanifest',
+  './manifest-6b.webmanifest',
   './css/style.css',
   './js/audio.js',
   './js/game.js',
