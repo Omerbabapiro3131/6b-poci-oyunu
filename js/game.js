@@ -2122,7 +2122,7 @@ toggleHud(false);
 updateHud();
 
 /* ---------- uygulama olarak yükle (PWA) ---------- */
-const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const standalone = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true;
 const iosDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 let installEvt = window.__bip || null;
 let installWaiters = [];
