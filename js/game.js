@@ -173,6 +173,7 @@ function startRun() {
   resetRun();
   st = 'play';
   setScreen(null);
+  hideInstallBar();
   toggleHud(true);
   chase = { t: 0 };
   updateHud();
@@ -195,6 +196,7 @@ function goMenu() {
   setScreen('menu');
   toggleHud(false);
   updateBest();
+  setTimeout(showInstallBar, 1300);
 }
 
 function giveUp() {
@@ -2120,5 +2122,76 @@ updateBest();
 setScreen('modes');
 toggleHud(false);
 updateHud();
+
+/* ---------- uygulama olarak yükle (PWA) ---------- */
+const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+let installEvt = null;
+
+function installOff() {
+  try { return localStorage.getItem('sixb_install_off') === '1'; } catch (e) { return false; }
+}
+function hideInstallBar() { $('installBar').classList.remove('on'); }
+let installBarTimer = 0;
+function showInstallBar() {
+  if (standalone || installOff() || !installEvt || st !== 'menu') return;
+  $('installBar').classList.add('on');
+  clearTimeout(installBarTimer);
+  installBarTimer = setTimeout(hideInstallBar, 12000);
+}
+function installHelp() {
+  const ua = navigator.userAgent;
+  let body;
+  if (standalone) {
+    body = 'Zaten uygulama olarak açıksın; bu pencere tarayıcı sekmesi değil.';
+  } else if (/iPhone|iPad|iPod/i.test(ua)) {
+    body = "Safari'de alttaki <b>Paylaş</b> düğmesine basıp <b>Ana Ekrana Ekle</b>'yi seç. APK indirilmez.";
+  } else if (/Android/i.test(ua)) {
+    body = "<b>Chrome menüsü → Uygulamayı yükle</b> (ya da <b>Ana ekrana ekle</b>). APK indirilmez, simge kurulur.";
+  } else if (/Firefox/i.test(ua)) {
+    body = "Firefox kurulum istemini desteklemiyor. <b>Pardus'ta Chromium</b>, diğerlerinde <b>Chrome / Edge</b> ile aç ve adres çubuğundaki <b>Yükle</b> simgesine bas.";
+  } else {
+    body = "Adres çubuğunun sağındaki <b>Yükle</b> simgesine bas. Yoksa <b>Chrome menüsü → Kaydet ve paylaş → Uygulamayı yükle</b>. EXE/APK indirilmez; oyun kendi penceresinde açılır.";
+  }
+  openModal('<h2>UYGULAMA OLARAK KUR</h2><p>' + body + '</p><p>Kurulumdan sonra simge ana ekranda görünür ve oyun internetsiz de açılır.</p><button class="b b1" id="insClose">TAMAM</button>');
+  $('insClose').onclick = closeModal;
+}
+async function promptInstall() {
+  hideInstallBar();
+  const evt = installEvt;
+  if (!evt) { installHelp(); return; }
+  installEvt = null;
+  try {
+    evt.prompt();
+  } catch (e) {
+    installHelp();
+    return;
+  }
+  try {
+    const res = await evt.userChoice;
+    if (res && res.outcome === 'accepted') {
+      try { localStorage.setItem('sixb_install_off', '1'); } catch (e) {}
+      $('installBtn').hidden = true;
+    }
+  } catch (e) {}
+}
+
+addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  installEvt = e;
+  if (st === 'menu') setTimeout(showInstallBar, 600);
+});
+addEventListener('appinstalled', () => {
+  installEvt = null;
+  try { localStorage.setItem('sixb_install_off', '1'); } catch (e) {}
+  hideInstallBar();
+  $('installBtn').hidden = true;
+});
+$('installBtn').onclick = promptInstall;
+$('installGo').onclick = promptInstall;
+$('installNo').onclick = () => { hideInstallBar(); try { localStorage.setItem('sixb_install_off', '1'); } catch (e) {} };
+if (standalone) $('installBtn').hidden = true;
+if ('serviceWorker' in navigator) {
+  addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
 
 })();
