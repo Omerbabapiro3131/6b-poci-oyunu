@@ -2067,7 +2067,6 @@ for (const el of document.querySelectorAll('.mode-btn')) {
     SFX.effect('ui');
     setScreen('menu');
     updateBest();
-    maybeAutoInstall();
   };
 }
 $('modeChip').onclick = () => { SFX.effect('ui'); setScreen('modes'); };
@@ -2132,15 +2131,15 @@ function installHelp() {
   if (standalone) {
     body = 'Zaten uygulama olarak açıksın; bu pencere tarayıcı sekmesi değil.';
   } else if (/iPhone|iPad|iPod/i.test(ua)) {
-    body = "Safari'de alttaki <b>Paylaş</b> düğmesine basıp <b>Ana Ekrana Ekle</b>'yi seç. APK indirilmez.";
+    body = "Safari'de alttaki <b>Paylaş</b> düğmesine basıp <b>Ana Ekrana Ekle</b>'yi seç.";
   } else if (/Android/i.test(ua)) {
-    body = "<b>Chrome menüsü → Uygulamayı yükle</b> (ya da <b>Ana ekrana ekle</b>). APK indirilmez, simge kurulur.";
+    body = "<b>Chrome menüsü → Uygulamayı yükle</b> (ya da <b>Ana ekrana ekle</b>). Simge telefonuna kurulur.";
   } else if (/Firefox/i.test(ua)) {
-    body = "Firefox kurulum istemini desteklemiyor. <b>Pardus'ta Chromium</b>, diğerlerinde <b>Chrome / Edge</b> ile aç ve adres çubuğundaki <b>Yükle</b> simgesine bas.";
+    body = "Firefox kurulum penceresini desteklemiyor. <b>Chrome / Edge / Opera</b> ile aç, adres çubuğundaki <b>Yükle</b> simgesine bas.";
   } else {
-    body = "Adres çubuğunun sağındaki <b>Yükle</b> simgesine bas. Yoksa <b>Chrome menüsü → Kaydet ve paylaş → Uygulamayı yükle</b>. EXE/APK indirilmez; oyun kendi penceresinde açılır.";
+    body = "Adres çubuğunun sağındaki <b>Yükle</b> simgesine bas. Görünmüyorsa <b>Chrome menüsü → Uygulamayı yükle</b>.";
   }
-  openModal('<h2>UYGULAMA OLARAK KUR</h2><p>' + body + '</p><p>Kurulumdan sonra simge ana ekranda görünür ve oyun internetsiz de açılır.</p><button class="b b1" id="insClose">TAMAM</button>');
+  openModal('<h2>UYGULAMA OLARAK KUR</h2><p>' + body + '</p><p>Kurulumda EXE/APK inmez; oyun simge olarak ana ekrana eklenir ve internetsiz de açılır.</p><button class="b b1" id="insClose">TAMAM</button>');
   $('insClose').onclick = closeModal;
 }
 async function promptInstall() {
@@ -2161,18 +2160,12 @@ async function promptInstall() {
     }
   } catch (e) {}
 }
-function maybeAutoInstall() {
-  if (standalone || !installEvt) return;
-  try {
-    if (sessionStorage.getItem('sixb_prompted') === '1') return;
-    sessionStorage.setItem('sixb_prompted', '1');
-  } catch (e) {}
-  promptInstall();
-}
 
 addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   installEvt = e;
+  try { localStorage.removeItem('sixb_installed'); } catch (e) {}
+  $('installBtn').hidden = false;
 });
 addEventListener('appinstalled', () => {
   installEvt = null;
