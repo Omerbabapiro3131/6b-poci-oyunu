@@ -119,7 +119,7 @@ function setScreen(name) {
   $('over').classList.toggle('on', name === 'over');
 }
 function toggleHud(on) { $('hud').classList.toggle('on', on); }
-function openModal(html) { $('mp').innerHTML = html; $('modal').classList.add('on'); }
+function openModal(html) { $('mp').innerHTML = html; $('mp').dataset.mode = ''; $('modal').classList.add('on'); }
 function closeModal() { $('modal').classList.remove('on'); }
 function updateBest() { $('best').textContent = 'REKOR: ' + scoreBest + ' m · 6/B STUDIOS'; }
 
@@ -407,6 +407,7 @@ function finishOver() {
   scoreBest = top[0].d;
   updateBest();
   if (!beatOver) SFX.effect('lose');
+  globalAfterRun(d, coins);
 }
 
 /* ---------- update ---------- */
@@ -2053,6 +2054,141 @@ addEventListener('keydown', e => {
   }
 });
 
+/* ---------- global liderlik (Supabase) ---------- */
+const SB_URL = String((window.SB_CONFIG && window.SB_CONFIG.url) || '').replace(/\/+$/, '');
+const SB_KEY = String((window.SB_CONFIG && window.SB_CONFIG.key) || '');
+const SB_ON = !!(SB_URL && SB_KEY);
+const escHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const cleanName = v => String(v || '').replace(/[\p{C}<>&"'`/\\]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 14);
+
+function playerId() {
+  let p = '';
+  try {
+    p = localStorage.getItem('sixb_pid') || '';
+    if (!p) {
+      p = (self.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+      localStorage.setItem('sixb_pid', p);
+    }
+  } catch (e) {
+    p = p || 'p' + Date.now().toString(36);
+  }
+  return p;
+}
+function sbHeaders(extra) {
+  const h = Object.assign({ apikey: SB_KEY }, extra || {});
+  if (SB_KEY.startsWith('eyJ')) h.Authorization = 'Bearer ' + SB_KEY;
+  return h;
+}
+async function sbTop(limit = 10) {
+  const r = await fetch(SB_URL + '/rest/v1/scores?select=player_id,name,dist,coins&order=dist.desc,updated_at.asc&limit=' + limit, {
+    headers: sbHeaders(),
+    cache: 'no-store'
+  });
+  if (!r.ok) throw new Error('lb ' + r.status);
+  const data = await r.json();
+  return Array.isArray(data) ? data : [];
+}
+async function sbSubmit(name, d, coins) {
+  const r = await fetch(SB_URL + '/rest/v1/rpc/submit_score', {
+    method: 'POST',
+    headers: sbHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ p_id: playerId(), p_name: name, p_dist: d, p_coins: coins })
+  });
+  if (!r.ok) throw new Error('submit ' + r.status);
+}
+
+let globalBusy = false;
+async function globalAfterRun(d, coins) {
+  if (!SB_ON || d < 1 || globalBusy) return;
+  let top;
+  try { top = await sbTop(10); } catch (e) { return; }
+  const cut = top.length < 10 ? -1 : top[top.length - 1].dist;
+  if (d <= cut) return;
+  const saved = cleanName(store.get('name', ''));
+  if (saved) {
+    sbSubmit(saved, d, coins).catch(() => {});
+    return;
+  }
+  if (st !== 'over' || $('modal').classList.contains('on')) return;
+  askLeaderName(d, coins);
+}
+
+function askLeaderName(d, coins) {
+  globalBusy = true;
+  openModal(
+    '<h2>LİDERLİĞE NASIL<br>KAYDEDİLMEK İSTİYORSUN?</h2>' +
+    '<p>' + d + ' m ile ilk 10\'a girdin!</p>' +
+    '<input id="lbName" maxlength="14" autocomplete="nickname" placeholder="ADIN">' +
+    '<button class="b b1" id="lbSave">KAYDET</button>' +
+    '<button class="b b2" id="lbSkip">VAZGEÇ</button>'
+  );
+  $('mp').dataset.mode = 'name';
+  const inp = $('lbName');
+  setTimeout(() => inp.focus(), 80);
+  const save = async () => {
+    const nm = cleanName(inp.value);
+    if (nm.length < 2) {
+      inp.style.borderColor = '#ff6b6b';
+      inp.focus();
+      return;
+    }
+    store.set('name', nm);
+    $('lbSave').disabled = true;
+    $('lbSave').textContent = 'KAYDEDİLİYOR…';
+    try {
+      await sbSubmit(nm, d, coins);
+      let rank = 0;
+      try {
+        const top = await sbTop(10);
+        rank = top.findIndex(s => s.player_id === playerId()) + 1;
+      } catch (e) {}
+      globalBusy = false;
+      openModal('<h2>LİDERLİĞE GİRDİN!</h2><p>' + escHtml(nm) + ' · ' + d + ' m' + (rank ? '<br>GLOBAL SIRALAMA: #' + rank : '') + '</p><button class="b b1" id="lbOk">TAMAM</button>');
+      $('lbOk').onclick = closeModal;
+    } catch (e) {
+      globalBusy = false;
+      closeModal();
+    }
+  };
+  $('lbSave').onclick = save;
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } });
+  $('lbSkip').onclick = () => { globalBusy = false; closeModal(); };
+}
+
+function localRowsHtml() {
+  const L = store.get('scores', []);
+  if (!L.length) return '<p>Henüz skor yok.<br>İlk kaçışı sen yap!</p>';
+  return L.slice(0, 10).map((s, i) => '<div class="row"><span>' + (i + 1) + '.</span><span class="lbname">SEN</span><span>' + s.d + ' m</span></div>').join('');
+}
+function globalRowsHtml(top) {
+  if (!top.length) return '<p>Henüz skor yok.<br>İlk kaçışı sen yap!</p>';
+  const me = playerId();
+  return top.map((s, i) => '<div class="row' + (s.player_id === me ? ' me' : '') + '"><span>' + (i + 1) + '.</span><span class="lbname">' + escHtml(s.name) + '</span><span>' + (s.dist | 0) + ' m</span></div>').join('');
+}
+const lbCloseBtn = '<button class="b b2" id="cl">KAPAT</button>';
+$('lbBtn').onclick = async () => {
+  SFX.effect('ui');
+  if (!SB_ON) {
+    openModal('<h2>LİDERLİK</h2>' + localRowsHtml() + '<p class="lbnote">GLOBAL TABLO HENÜZ AÇILMADI</p>' + lbCloseBtn);
+    $('cl').onclick = closeModal;
+    return;
+  }
+  openModal('<h2>LİDERLİK</h2><p>YÜKLENİYOR…</p>' + lbCloseBtn);
+  $('mp').dataset.mode = 'lb';
+  $('cl').onclick = closeModal;
+  try {
+    const top = await sbTop(10);
+    if (!document.getElementById('modal').classList.contains('on') || $('mp').dataset.mode !== 'lb') return;
+    openModal('<h2>LİDERLİK</h2>' + globalRowsHtml(top) + lbCloseBtn);
+    $('mp').dataset.mode = 'lb';
+    $('cl').onclick = closeModal;
+  } catch (e) {
+    if (!$('modal').classList.contains('on') || $('mp').dataset.mode !== 'lb') return;
+    openModal('<h2>LİDERLİK</h2>' + localRowsHtml() + '<p class="lbnote">BAĞLANTI YOK — YEREL SKORLAR</p>' + lbCloseBtn);
+    $('cl').onclick = closeModal;
+  }
+};
+
 /* ---------- buttons ---------- */
 $('play').onclick = () => { SFX.effect('ui'); startRun(); };
 $('again').onclick = () => { startRun(); SFX.play('alo', { volume: 0.85 }); };
@@ -2076,15 +2212,6 @@ for (const [id, fn] of [['tL', () => move(-1)], ['tJ', jump], ['tR', () => move(
   el.addEventListener('pointerdown', e => { e.preventDefault(); fn(); });
   el.addEventListener('contextmenu', e => e.preventDefault());
 }
-
-$('lbBtn').onclick = () => {
-  const L = store.get('scores', []);
-  const rows = L.length
-    ? L.slice(0, 10).map((s, i) => '<div class="row"><span>' + (i + 1) + '.</span><span>' + s.d + ' m</span><span>' + s.c + ' · 6/B</span></div>').join('')
-    : '<p>Henüz skor yok.<br>İlk kaçışı sen yap!</p>';
-  openModal('<h2>LİDERLİK</h2>' + rows + '<button class="b b2" id="cl">KAPAT</button>');
-  $('cl').onclick = () => { closeModal(); };
-};
 
 $('setBtn').onclick = () => {
   const draw = () => {
