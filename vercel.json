@@ -2,6 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [
+    { "source": "/supabase.sql", "destination": "/", "permanent": false }
+  ],
   "headers": [
     {
       "source": "/sw.js",
@@ -11,7 +14,7 @@
       ]
     },
     {
-      "source": "/manifest.webmanifest",
+      "source": "/manifest-6b.webmanifest",
       "headers": [
         { "key": "Content-Type", "value": "application/manifest+json" },
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
