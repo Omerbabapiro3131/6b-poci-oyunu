@@ -1,9 +1,10 @@
-const CACHE = 'sixb-run-v10';
+const CACHE = 'sixb-run-v12';
 
 const CORE = [
   './index.html',
   './manifest-6b.webmanifest',
   './css/style.css',
+  './js/config.js',
   './js/audio.js',
   './js/game.js',
   './assets/img/duran.png',
