@@ -2166,26 +2166,27 @@ function globalRowsHtml(top) {
   return top.map((s, i) => '<div class="row' + (s.player_id === me ? ' me' : '') + '"><span>' + (i + 1) + '.</span><span class="lbname">' + escHtml(s.name) + '</span><span>' + (s.dist | 0) + ' m</span></div>').join('');
 }
 const lbCloseBtn = '<button class="b b2" id="cl">KAPAT</button>';
+const lbFoot = '<button class="b b2" id="admOpen">YÖNETİCİ MODU</button><button class="b b2" id="cl">KAPAT</button>';
+function openLb(html) {
+  openModal(html + lbFoot);
+  $('mp').dataset.mode = 'lb';
+  $('cl').onclick = closeModal;
+  $('admOpen').onclick = adminLogin;
+}
 $('lbBtn').onclick = async () => {
   SFX.effect('ui');
   if (!SB_ON) {
-    openModal('<h2>LİDERLİK</h2>' + localRowsHtml() + '<p class="lbnote">GLOBAL TABLO HENÜZ AÇILMADI</p>' + lbCloseBtn);
-    $('cl').onclick = closeModal;
+    openLb('<h2>LİDERLİK</h2>' + localRowsHtml() + '<p class="lbnote">GLOBAL TABLO HENÜZ AÇILMADI</p>');
     return;
   }
-  openModal('<h2>LİDERLİK</h2><p>YÜKLENİYOR…</p>' + lbCloseBtn);
-  $('mp').dataset.mode = 'lb';
-  $('cl').onclick = closeModal;
+  openLb('<h2>LİDERLİK</h2><p>YÜKLENİYOR…</p>');
   try {
     const top = await sbTop(10);
     if (!document.getElementById('modal').classList.contains('on') || $('mp').dataset.mode !== 'lb') return;
-    openModal('<h2>LİDERLİK</h2>' + globalRowsHtml(top) + lbCloseBtn);
-    $('mp').dataset.mode = 'lb';
-    $('cl').onclick = closeModal;
+    openLb('<h2>LİDERLİK</h2>' + globalRowsHtml(top));
   } catch (e) {
     if (!$('modal').classList.contains('on') || $('mp').dataset.mode !== 'lb') return;
-    openModal('<h2>LİDERLİK</h2>' + localRowsHtml() + '<p class="lbnote">BAĞLANTI YOK — YEREL SKORLAR</p>' + lbCloseBtn);
-    $('cl').onclick = closeModal;
+    openLb('<h2>LİDERLİK</h2>' + localRowsHtml() + '<p class="lbnote">BAĞLANTI YOK — YEREL SKORLAR</p>');
   }
 };
 
