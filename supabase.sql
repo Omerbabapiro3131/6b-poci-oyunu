@@ -36,3 +36,47 @@ $$;
 revoke all on function public.submit_score(text, text, integer, integer) from public;
 grant execute on function public.submit_score(text, text, integer, integer) to anon;
 grant select on public.scores to anon;
+
+-- Yönetici: kayıt silme ve ad değiştirme. Şifre istemcide değil, burada doğrulanır.
+create or replace function public.admin_scores(p_pass text, p_action text, p_id text, p_name text)
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_name text;
+begin
+  if p_pass is distinct from 'klanet444' then
+    perform pg_sleep(0.5);
+    raise exception 'ADMIN_PASSWORD' using errcode = '28000';
+  end if;
+
+  if p_action = 'check' then
+    return json_build_object('ok', true);
+  end if;
+
+  if p_id is null or char_length(p_id) < 1 then
+    raise exception 'INVALID_ID';
+  end if;
+
+  if p_action = 'delete' then
+    delete from public.scores where player_id = p_id;
+    return json_build_object('ok', true);
+  end if;
+
+  if p_action = 'rename' then
+    v_name := left(trim(p_name), 14);
+    if v_name is null or char_length(v_name) < 2 then
+      raise exception 'INVALID_NAME';
+    end if;
+    update public.scores set name = v_name, updated_at = now() where player_id = p_id;
+    return json_build_object('ok', true);
+  end if;
+
+  raise exception 'UNKNOWN_ACTION';
+end;
+$$;
+
+revoke all on function public.admin_scores(text, text, text, text) from public;
+grant execute on function public.admin_scores(text, text, text, text) to anon;
