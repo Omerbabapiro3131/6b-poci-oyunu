@@ -2189,6 +2189,159 @@ $('lbBtn').onclick = async () => {
   }
 };
 
+/* ---------- yönetici modu ---------- */
+let adminPass = '';
+
+async function sbAdmin(action, id, name) {
+  const r = await fetch(SB_URL + '/rest/v1/rpc/admin_scores', {
+    method: 'POST',
+    headers: sbHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ p_pass: adminPass, p_action: action, p_id: id || null, p_name: name || null })
+  });
+  const txt = await r.text();
+  if (!r.ok) {
+    let msg = txt;
+    try { msg = JSON.parse(txt).message || txt; } catch (e) {}
+    const err = new Error(msg || ('HTTP ' + r.status));
+    err.status = r.status;
+    throw err;
+  }
+  return null;
+}
+function adminErrText(e) {
+  const m = String((e && e.message) || '');
+  if (m.indexOf('ADMIN_PASSWORD') !== -1 || e.status === 401 || e.status === 403) return 'ŞİFRE YANLIŞ';
+  if (m.indexOf('INVALID_NAME') !== -1) return 'AD EN AZ 2 KARAKTER OLMALI';
+  return 'İŞLEM YAPILAMADI — TEKRAR DENE';
+}
+
+function adminLogin() {
+  adminPass = '';
+  if (!SB_ON) {
+    openModal('<h2>YÖNETİCİ MODU</h2><p>Liderlik sunucusu ayarlı değil.</p>' + lbCloseBtn);
+    $('cl').onclick = closeModal;
+    return;
+  }
+  openModal(
+    '<h2>YÖNETİCİ GİRİŞİ</h2>' +
+    '<input id="admPass" type="password" maxlength="32" autocomplete="current-password" placeholder="ŞİFRE">' +
+    '<p class="lbnote err" id="admErr"></p>' +
+    '<button class="b b1" id="admGo">GİRİŞ</button>' +
+    '<button class="b b2" id="admCancel">İPTAL</button>'
+  );
+  const inp = $('admPass');
+  const err = $('admErr');
+  setTimeout(() => inp.focus(), 80);
+  const go = async () => {
+    if (!inp.value) { err.textContent = 'ŞİFRE GİR'; return; }
+    $('admGo').disabled = true;
+    $('admGo').textContent = 'KONTROL…';
+    adminPass = inp.value;
+    try {
+      await sbAdmin('check');
+      adminPanel();
+    } catch (e) {
+      adminPass = '';
+      $('admGo').disabled = false;
+      $('admGo').textContent = 'GİRİŞ';
+      err.textContent = adminErrText(e);
+      inp.focus();
+    }
+  };
+  $('admGo').onclick = go;
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
+  $('admCancel').onclick = () => { adminPass = ''; closeModal(); };
+}
+
+async function adminPanel() {
+  openModal('<h2>YÖNETİCİ MODU</h2><p>YÜKLENİYOR…</p>' + lbCloseBtn);
+  $('mp').dataset.mode = 'admin';
+  $('cl').onclick = closeModal;
+  let top;
+  try {
+    top = await sbTop(100);
+  } catch (e) {
+    if ($('mp').dataset.mode !== 'admin' || !$('modal').classList.contains('on')) return;
+    openModal('<h2>YÖNETİCİ MODU</h2><p>LİDERLİK YÜKLENEMEDİ.</p>' + lbCloseBtn);
+    $('cl').onclick = closeModal;
+    return;
+  }
+  if ($('mp').dataset.mode !== 'admin' || !$('modal').classList.contains('on')) return;
+  const rows = top.length
+    ? top.map((s, i) =>
+      '<div class="row admin"><span>' + (i + 1) + '.</span>' +
+      '<span class="lbname">' + escHtml(s.name) + '</span>' +
+      '<span class="adist">' + (s.dist | 0) + ' m</span>' +
+      '<span class="abtns"><button class="abtn" data-i="' + i + '">AD</button><button class="abtn del" data-d="' + i + '">SİL</button></span></div>'
+    ).join('')
+    : '<p>Henüz kayıt yok.</p>';
+  openModal(
+    '<h2>YÖNETİCİ MODU</h2>' +
+    (top.length ? '<p class="lbnote">İLK ' + top.length + ' KAYIT</p>' : '') +
+    rows +
+    '<button class="b b2" id="admOut">ÇIKIŞ</button><button class="b b2" id="cl">KAPAT</button>'
+  );
+  $('mp').dataset.mode = 'admin';
+  for (const b of $('mp').querySelectorAll('[data-i]')) b.onclick = () => adminRename(top[+b.dataset.i]);
+  for (const b of $('mp').querySelectorAll('[data-d]')) b.onclick = () => adminDelete(top[+b.dataset.d]);
+  $('admOut').onclick = () => { adminPass = ''; closeModal(); };
+  $('cl').onclick = closeModal;
+}
+
+function adminRename(s) {
+  openModal(
+    '<h2>ADI DEĞİŞTİR</h2>' +
+    '<p>' + escHtml(s.name) + ' · ' + (s.dist | 0) + ' m</p>' +
+    '<input id="admName" maxlength="14" value="' + escHtml(s.name) + '">' +
+    '<p class="lbnote err" id="admErr"></p>' +
+    '<button class="b b1" id="admSave">KAYDET</button>' +
+    '<button class="b b2" id="admBack">GERİ</button>'
+  );
+  const inp = $('admName');
+  const err = $('admErr');
+  setTimeout(() => { inp.focus(); inp.select(); }, 80);
+  const save = async () => {
+    const nm = cleanName(inp.value);
+    if (nm.length < 2) { err.textContent = 'AD EN AZ 2 KARAKTER OLMALI'; inp.focus(); return; }
+    $('admSave').disabled = true;
+    $('admSave').textContent = 'KAYDEDİLİYOR…';
+    try {
+      await sbAdmin('rename', s.player_id, nm);
+      adminPanel();
+    } catch (e) {
+      $('admSave').disabled = false;
+      $('admSave').textContent = 'KAYDET';
+      err.textContent = adminErrText(e);
+    }
+  };
+  $('admSave').onclick = save;
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } });
+  $('admBack').onclick = adminPanel;
+}
+
+function adminDelete(s) {
+  openModal(
+    '<h2>KAYDI SİL</h2>' +
+    '<p><b>' + escHtml(s.name) + '</b> · ' + (s.dist | 0) + ' m<br>Bu kayıt kalıcı olarak silinsin mi?</p>' +
+    '<p class="lbnote err" id="admErr"></p>' +
+    '<button class="b b1" id="admDel">SİL</button>' +
+    '<button class="b b2" id="admBack">VAZGEÇ</button>'
+  );
+  $('admBack').onclick = adminPanel;
+  $('admDel').onclick = async () => {
+    $('admDel').disabled = true;
+    $('admDel').textContent = 'SİLİNİYOR…';
+    try {
+      await sbAdmin('delete', s.player_id);
+      adminPanel();
+    } catch (e) {
+      $('admDel').disabled = false;
+      $('admDel').textContent = 'SİL';
+      $('admErr').textContent = adminErrText(e);
+    }
+  };
+}
+
 /* ---------- buttons ---------- */
 $('play').onclick = () => { SFX.effect('ui'); startRun(); };
 $('again').onclick = () => { startRun(); SFX.play('alo', { volume: 0.85 }); };
@@ -2215,7 +2368,7 @@ for (const [id, fn] of [['tL', () => move(-1)], ['tJ', jump], ['tR', () => move(
 
 $('setBtn').onclick = () => {
   const draw = () => {
-    openModal('<h2>AYARLAR</h2><button class="b b2" id="snd">SES: ' + (soundOn ? 'AÇIK' : 'KAPALI') + '</button><button class="b b2" id="modeSet">MOD: ' + MODE_LABEL[playMode] + '</button><button class="b b2" id="cl">KAPAT</button>');
+    openModal('<h2>AYARLAR</h2><button class="b b2" id="snd">SES: ' + (soundOn ? 'AÇIK' : 'KAPALI') + '</button><button class="b b2" id="modeSet">MOD: ' + MODE_LABEL[playMode] + '</button><button class="b b2" id="admBtn">YÖNETİCİ MODU</button><button class="b b2" id="cl">KAPAT</button>');
     $('snd').onclick = () => {
       soundOn = !soundOn;
       store.set('sound', soundOn);
@@ -2224,6 +2377,7 @@ $('setBtn').onclick = () => {
       draw();
     };
     $('modeSet').onclick = () => { closeModal(); setScreen('modes'); };
+    $('admBtn').onclick = adminLogin;
     $('cl').onclick = () => { closeModal(); };
   };
   draw();
