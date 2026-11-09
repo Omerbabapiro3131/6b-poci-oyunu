@@ -2059,7 +2059,7 @@ const SB_URL = String((window.SB_CONFIG && window.SB_CONFIG.url) || '').replace(
 const SB_KEY = String((window.SB_CONFIG && window.SB_CONFIG.key) || '');
 const SB_ON = !!(SB_URL && SB_KEY);
 const escHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const cleanName = v => String(v || '').replace(/[\p{C}<>&"'`/\\]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 14);
+const cleanName = v => String(v || '').replace(/[\p{C}<>&"'`/\\]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 15);
 
 function playerId() {
   let p = '';
@@ -2118,7 +2118,7 @@ function askLeaderName(d, coins) {
   openModal(
     '<h2>LİDERLİĞE NASIL<br>KAYDEDİLMEK İSTİYORSUN?</h2>' +
     '<p>' + d + ' m ile ilk 10\'a girdin!</p>' +
-    '<input id="lbName" maxlength="14" autocomplete="nickname" placeholder="ADIN">' +
+    '<input id="lbName" maxlength="15" autocomplete="nickname" placeholder="ADIN">' +
     '<button class="b b1" id="lbSave">KAYDET</button>' +
     '<button class="b b2" id="lbSkip">VAZGEÇ</button>'
   );
@@ -2292,7 +2292,7 @@ function adminRename(s) {
   openModal(
     '<h2>ADI DEĞİŞTİR</h2>' +
     '<p>' + escHtml(s.name) + ' · ' + (s.dist | 0) + ' m</p>' +
-    '<input id="admName" maxlength="14" value="' + escHtml(s.name) + '">' +
+    '<input id="admName" maxlength="15" value="' + escHtml(s.name) + '">' +
     '<p class="lbnote err" id="admErr"></p>' +
     '<button class="b b1" id="admSave">KAYDET</button>' +
     '<button class="b b2" id="admBack">GERİ</button>'
