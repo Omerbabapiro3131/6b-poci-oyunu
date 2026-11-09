@@ -3,13 +3,17 @@
 
 create table if not exists public.scores (
   player_id text primary key check (char_length(player_id) between 1 and 64),
-  name text not null check (char_length(name) between 1 and 14),
+  name text not null check (char_length(name) between 1 and 15),
   dist integer not null check (dist >= 0 and dist < 1000000),
   coins integer not null default 0 check (coins >= 0),
   updated_at timestamptz not null default now()
 );
 
 create index if not exists scores_dist_idx on public.scores (dist desc, updated_at asc);
+
+-- Daha önce 14 karakterle kurulduysa sınırı 15'e çıkar (yeniden çalıştırmak güvenli).
+alter table public.scores drop constraint if exists scores_name_check;
+alter table public.scores add constraint scores_name_check check (char_length(name) between 1 and 15);
 
 alter table public.scores enable row level security;
 
@@ -24,7 +28,7 @@ security definer
 set search_path = public
 as $$
   insert into public.scores (player_id, name, dist, coins)
-  values (left(p_id, 64), left(p_name, 14), greatest(p_dist, 0), greatest(p_coins, 0))
+  values (left(p_id, 64), left(p_name, 15), greatest(p_dist, 0), greatest(p_coins, 0))
   on conflict (player_id) do update
     set name = excluded.name,
         dist = excluded.dist,
@@ -66,7 +70,7 @@ begin
   end if;
 
   if p_action = 'rename' then
-    v_name := left(trim(p_name), 14);
+    v_name := left(trim(p_name), 15);
     if v_name is null or char_length(v_name) < 2 then
       raise exception 'INVALID_NAME';
     end if;
