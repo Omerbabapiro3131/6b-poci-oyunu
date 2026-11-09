@@ -128,6 +128,12 @@ body.mode-board #hud.on ~ #touch{display:flex}
 .row span:first-child{color:#ffd23f;flex:none;min-width:5cqw}
 .row.me{background:rgba(255,210,63,.16);box-shadow:inset 0 0 0 .22cqh #ffd23f}
 .row .lbname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.row.admin{gap:1.2cqw;font-size:2.3cqh;padding:1cqh 2.4cqw}
+.row.admin .adist{flex:none;min-width:11cqw;text-align:right}
+.abtns{display:flex;gap:1cqw;flex:none}
+.abtn{border:.2cqh solid #6488ff;background:rgba(30,50,110,.9);color:#fff;font-family:inherit;font-weight:900;font-size:1.8cqh;border-radius:99px;padding:.45cqh 2cqw;cursor:pointer;line-height:1.4}
+.abtn.del{border-color:#ff6b6b;color:#ffd9d9;background:rgba(60,6,10,.9)}
+.lbnote.err{color:#ff8d7c}
 .panel input{width:70cqw;height:6.4cqh;border-radius:99px;border:.3cqh solid #6488ff;background:#0a1430;color:#fff;font-family:inherit;font-weight:900;font-size:2.9cqh;text-align:center;padding:0 4cqw;outline:none;letter-spacing:.03em}
 .panel input:focus{border-color:#ffd23f}
 .lbnote{font-size:1.8cqh;color:#7f93bf;letter-spacing:.08em;text-align:center;margin:0}
