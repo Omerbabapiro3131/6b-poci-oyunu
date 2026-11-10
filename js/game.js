@@ -2074,6 +2074,19 @@ function playerId() {
   }
   return p;
 }
+function playerToken() {
+  let t = '';
+  try {
+    t = localStorage.getItem('sixb_token') || '';
+    if (!t) {
+      t = (self.crypto && crypto.randomUUID) ? crypto.randomUUID() : 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 14);
+      localStorage.setItem('sixb_token', t);
+    }
+  } catch (e) {
+    t = t || 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 14);
+  }
+  return t;
+}
 function sbHeaders(extra) {
   const h = Object.assign({ apikey: SB_KEY }, extra || {});
   if (SB_KEY.startsWith('eyJ')) h.Authorization = 'Bearer ' + SB_KEY;
@@ -2092,7 +2105,7 @@ async function sbSubmit(name, d, coins) {
   const r = await fetch(SB_URL + '/rest/v1/rpc/submit_score', {
     method: 'POST',
     headers: sbHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ p_id: playerId(), p_name: name, p_dist: d, p_coins: coins })
+    body: JSON.stringify({ p_id: playerId(), p_name: name, p_dist: d, p_coins: coins, p_token: playerToken() })
   });
   if (!r.ok) throw new Error('submit ' + r.status);
 }
@@ -2166,11 +2179,12 @@ function globalRowsHtml(top) {
   return top.map((s, i) => '<div class="row' + (s.player_id === me ? ' me' : '') + '"><span>' + (i + 1) + '.</span><span class="lbname">' + escHtml(s.name) + '</span><span>' + (s.dist | 0) + ' m</span></div>').join('');
 }
 const lbCloseBtn = '<button class="b b2" id="cl">KAPAT</button>';
-const lbFoot = '<button class="b b2" id="admOpen">YÖNETİCİ MODU</button><button class="b b2" id="cl">KAPAT</button>';
+const lbFoot = '<button class="b b2" id="myName">İSMİMİ DEĞİŞTİR</button><button class="b b2" id="admOpen">YÖNETİCİ MODU</button><button class="b b2" id="cl">KAPAT</button>';
 function openLb(html) {
   openModal(html + lbFoot);
   $('mp').dataset.mode = 'lb';
   $('cl').onclick = closeModal;
+  $('myName').onclick = playerRename;
   $('admOpen').onclick = adminLogin;
 }
 $('lbBtn').onclick = async () => {
@@ -2189,6 +2203,74 @@ $('lbBtn').onclick = async () => {
     openLb('<h2>LİDERLİK</h2>' + localRowsHtml() + '<p class="lbnote">BAĞLANTI YOK — YEREL SKORLAR</p>');
   }
 };
+
+/* ---------- oyuncu kendi adını değiştirir ---------- */
+async function sbRenameMe(name) {
+  const r = await fetch(SB_URL + '/rest/v1/rpc/rename_me', {
+    method: 'POST',
+    headers: sbHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ p_id: playerId(), p_token: playerToken(), p_name: name })
+  });
+  const txt = await r.text();
+  if (!r.ok) {
+    let msg = txt;
+    try { msg = JSON.parse(txt).message || txt; } catch (e) {}
+    const err = new Error(msg || ('HTTP ' + r.status));
+    err.status = r.status;
+    throw err;
+  }
+}
+function renameErrText(e) {
+  const m = String((e && e.message) || '');
+  if (m.indexOf('INVALID_NAME') !== -1) return 'AD EN AZ 2 KARAKTER OLMALI';
+  if (m.indexOf('INVALID_TOKEN') !== -1) return 'KAYIT BULUNAMADI — ÖNCE LİDERLİĞE GİR';
+  if (e.status === 404) return 'SUNUCU GÜNCELLENMEDİ';
+  return 'İŞLEM YAPILAMADI — TEKRAR DENE';
+}
+
+function playerRename() {
+  if (!SB_ON) {
+    openModal('<h2>İSMİMİ DEĞİŞTİR</h2><p>Liderlik sunucusu ayarlı değil.</p>' + lbCloseBtn);
+    $('cl').onclick = closeModal;
+    return;
+  }
+  const saved = cleanName(store.get('name', ''));
+  if (!saved) {
+    openModal('<h2>İSMİMİ DEĞİŞTİR</h2><p>Liderlikte henüz bir adın yok.<br>İlk 10\'a girince adın sorulacak.</p>' + lbCloseBtn);
+    $('cl').onclick = closeModal;
+    return;
+  }
+  openModal(
+    '<h2>İSMİMİ DEĞİŞTİR</h2>' +
+    '<input id="myNameIn" maxlength="15" autocomplete="nickname" value="' + escHtml(saved) + '">' +
+    '<p class="lbnote err" id="myNameErr"></p>' +
+    '<button class="b b1" id="myNameSave">KAYDET</button>' +
+    '<button class="b b2" id="myNameBack">GERİ</button>'
+  );
+  $('mp').dataset.mode = 'name';
+  const inp = $('myNameIn');
+  const err = $('myNameErr');
+  setTimeout(() => { inp.focus(); inp.select(); }, 80);
+  const save = async () => {
+    const nm = cleanName(inp.value);
+    if (nm.length < 2) { err.textContent = 'AD EN AZ 2 KARAKTER OLMALI'; inp.focus(); return; }
+    $('myNameSave').disabled = true;
+    $('myNameSave').textContent = 'KAYDEDİLİYOR…';
+    try {
+      await sbRenameMe(nm);
+      store.set('name', nm);
+      openModal('<h2>ADIN DEĞİŞTİ</h2><p>Yeni adın:<br><b>' + escHtml(nm) + '</b></p><button class="b b1" id="myNameOk">TAMAM</button>');
+      $('myNameOk').onclick = () => { $('lbBtn').onclick(); };
+    } catch (e) {
+      $('myNameSave').disabled = false;
+      $('myNameSave').textContent = 'KAYDET';
+      err.textContent = renameErrText(e);
+    }
+  };
+  $('myNameSave').onclick = save;
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } });
+  $('myNameBack').onclick = () => { $('lbBtn').onclick(); };
+}
 
 /* ---------- yönetici modu ---------- */
 let adminPass = '';
@@ -2369,107 +2451,4 @@ for (const [id, fn] of [['tL', () => move(-1)], ['tJ', jump], ['tR', () => move(
 
 $('setBtn').onclick = () => {
   const draw = () => {
-    openModal('<h2>AYARLAR</h2><button class="b b2" id="snd">SES: ' + (soundOn ? 'AÇIK' : 'KAPALI') + '</button><button class="b b2" id="modeSet">MOD: ' + MODE_LABEL[playMode] + '</button><button class="b b2" id="admBtn">YÖNETİCİ MODU</button><button class="b b2" id="cl">KAPAT</button>');
-    $('snd').onclick = () => {
-      soundOn = !soundOn;
-      store.set('sound', soundOn);
-      SFX.setEnabled(soundOn);
-      SFX.effect('ui');
-      draw();
-    };
-    $('modeSet').onclick = () => { closeModal(); setScreen('modes'); };
-    $('admBtn').onclick = adminLogin;
-    $('cl').onclick = () => { closeModal(); };
-  };
-  draw();
-};
-
-/* ---------- splash ---------- */
-let splashGone = false;
-function hideSplash() {
-  if (splashGone) return;
-  splashGone = true;
-  const s = $('splash');
-  s.classList.add('out');
-  setTimeout(() => { s.style.display = 'none'; }, 700);
-}
-$('splash').addEventListener('pointerdown', hideSplash);
-setTimeout(hideSplash, 2800);
-window.addEventListener('load', () => setTimeout(hideSplash, 1500));
-
-applyMode(playMode);
-updateBest();
-setScreen('modes');
-toggleHud(false);
-updateHud();
-
-/* ---------- uygulama olarak yükle (PWA) ---------- */
-const standalone = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true;
-const iosDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-let installEvt = window.__bip || null;
-let installWaiters = [];
-
-function bip(e) {
-  e.preventDefault();
-  installEvt = e;
-  try { localStorage.removeItem('sixb_installed'); } catch (err) {}
-  $('installBtn').hidden = false;
-  const w = installWaiters;
-  installWaiters = [];
-  for (const f of w) f(e);
-}
-addEventListener('beforeinstallprompt', bip);
-
-function iosHelp() {
-  openModal('<h2>UYGULAMA OLARAK KUR</h2><p>Safari\'de alttaki <b>Paylaş</b> düğmesine basıp <b>Ana Ekrana Ekle</b>\'yi seç.</p><button class="b b1" id="insClose">TAMAM</button>');
-  $('insClose').onclick = closeModal;
-}
-function waitInstall(ms) {
-  return new Promise(res => {
-    if (installEvt) { res(installEvt); return; }
-    const f = e => { clearTimeout(t); res(e); };
-    installWaiters.push(f);
-    const t = setTimeout(() => {
-      installWaiters = installWaiters.filter(x => x !== f);
-      res(null);
-    }, ms);
-  });
-}
-async function promptInstall() {
-  let evt = installEvt;
-  if (!evt) evt = await waitInstall(2000);
-  if (!evt) {
-    if (iosDevice) iosHelp();
-    return;
-  }
-  installEvt = null;
-  window.__bip = null;
-  try {
-    const p = evt.prompt();
-    if (p && p.catch) p.catch(() => {});
-  } catch (e) {
-    return;
-  }
-  try {
-    const res = await evt.userChoice;
-    if (res && res.outcome === 'accepted') {
-      try { localStorage.setItem('sixb_installed', '1'); } catch (e) {}
-      $('installBtn').hidden = true;
-    }
-  } catch (e) {}
-}
-addEventListener('appinstalled', () => {
-  installEvt = null;
-  try { localStorage.setItem('sixb_installed', '1'); } catch (e) {}
-  $('installBtn').hidden = true;
-});
-$('installBtn').onclick = promptInstall;
-try {
-  if (installEvt) localStorage.removeItem('sixb_installed');
-  if (standalone || localStorage.getItem('sixb_installed') === '1') $('installBtn').hidden = true;
-} catch (e) {}
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
-}
-
-})();
+    openModal('<h2>AYARLAR</h2><button class="b b2" id=
