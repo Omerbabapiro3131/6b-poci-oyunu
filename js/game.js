@@ -2451,4 +2451,107 @@ for (const [id, fn] of [['tL', () => move(-1)], ['tJ', jump], ['tR', () => move(
 
 $('setBtn').onclick = () => {
   const draw = () => {
-    openModal('<h2>AYARLAR</h2><button class="b b2" id=
+    openModal('<h2>AYARLAR</h2><button class="b b2" id="snd">SES: ' + (soundOn ? 'AÇIK' : 'KAPALI') + '</button><button class="b b2" id="modeSet">MOD: ' + MODE_LABEL[playMode] + '</button><button class="b b2" id="admBtn">YÖNETİCİ MODU</button><button class="b b2" id="cl">KAPAT</button>');
+    $('snd').onclick = () => {
+      soundOn = !soundOn;
+      store.set('sound', soundOn);
+      SFX.setEnabled(soundOn);
+      SFX.effect('ui');
+      draw();
+    };
+    $('modeSet').onclick = () => { closeModal(); setScreen('modes'); };
+    $('admBtn').onclick = adminLogin;
+    $('cl').onclick = () => { closeModal(); };
+  };
+  draw();
+};
+
+/* ---------- splash ---------- */
+let splashGone = false;
+function hideSplash() {
+  if (splashGone) return;
+  splashGone = true;
+  const s = $('splash');
+  s.classList.add('out');
+  setTimeout(() => { s.style.display = 'none'; }, 700);
+}
+$('splash').addEventListener('pointerdown', hideSplash);
+setTimeout(hideSplash, 2800);
+window.addEventListener('load', () => setTimeout(hideSplash, 1500));
+
+applyMode(playMode);
+updateBest();
+setScreen('modes');
+toggleHud(false);
+updateHud();
+
+/* ---------- uygulama olarak yükle (PWA) ---------- */
+const standalone = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true;
+const iosDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+let installEvt = window.__bip || null;
+let installWaiters = [];
+
+function bip(e) {
+  e.preventDefault();
+  installEvt = e;
+  try { localStorage.removeItem('sixb_installed'); } catch (err) {}
+  $('installBtn').hidden = false;
+  const w = installWaiters;
+  installWaiters = [];
+  for (const f of w) f(e);
+}
+addEventListener('beforeinstallprompt', bip);
+
+function iosHelp() {
+  openModal('<h2>UYGULAMA OLARAK KUR</h2><p>Safari\'de alttaki <b>Paylaş</b> düğmesine basıp <b>Ana Ekrana Ekle</b>\'yi seç.</p><button class="b b1" id="insClose">TAMAM</button>');
+  $('insClose').onclick = closeModal;
+}
+function waitInstall(ms) {
+  return new Promise(res => {
+    if (installEvt) { res(installEvt); return; }
+    const f = e => { clearTimeout(t); res(e); };
+    installWaiters.push(f);
+    const t = setTimeout(() => {
+      installWaiters = installWaiters.filter(x => x !== f);
+      res(null);
+    }, ms);
+  });
+}
+async function promptInstall() {
+  let evt = installEvt;
+  if (!evt) evt = await waitInstall(2000);
+  if (!evt) {
+    if (iosDevice) iosHelp();
+    return;
+  }
+  installEvt = null;
+  window.__bip = null;
+  try {
+    const p = evt.prompt();
+    if (p && p.catch) p.catch(() => {});
+  } catch (e) {
+    return;
+  }
+  try {
+    const res = await evt.userChoice;
+    if (res && res.outcome === 'accepted') {
+      try { localStorage.setItem('sixb_installed', '1'); } catch (e) {}
+      $('installBtn').hidden = true;
+    }
+  } catch (e) {}
+}
+addEventListener('appinstalled', () => {
+  installEvt = null;
+  try { localStorage.setItem('sixb_installed', '1'); } catch (e) {}
+  $('installBtn').hidden = true;
+});
+$('installBtn').onclick = promptInstall;
+try {
+  if (installEvt) localStorage.removeItem('sixb_installed');
+  if (standalone || localStorage.getItem('sixb_installed') === '1') $('installBtn').hidden = true;
+} catch (e) {}
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+})();
