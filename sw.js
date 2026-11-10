@@ -1,4 +1,4 @@
-const CACHE = 'sixb-run-v15';
+const CACHE = 'sixb-run-v16';
 
 const CORE = [
   './index.html',
