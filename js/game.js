@@ -198,11 +198,16 @@ function goMenu() {
 }
 
 function giveUp() {
+  const wasHit = st === 'hit';
+  const d = Math.floor(dist);
+  const c = coins;
   hideOffer();
   stopGameAudio();
   SFX.stopAll();
+  if (wasHit) recordLocalRun(d, c);
   goMenu();
   SFX.play('dikidis', { volume: 0.9 });
+  if (wasHit) globalAfterRun(d, c);
 }
 
 function togglePause() {
@@ -399,15 +404,19 @@ function finishOver() {
   const d = Math.floor(dist);
   $('od').textContent = d + ' m';
   $('oc').textContent = coins + (modeStarsTotal ? ' · ★' + modeStarsTotal : '');
+  recordLocalRun(d, coins);
+  if (!beatOver) SFX.effect('lose');
+  globalAfterRun(d, coins);
+}
+
+function recordLocalRun(d, c) {
   const L = store.get('scores', []);
-  L.push({ d, c: coins, k: Date.now() });
+  L.push({ d, c, k: Date.now() });
   L.sort((a, b) => b.d - a.d);
   const top = L.slice(0, 10);
   store.set('scores', top);
   scoreBest = top[0].d;
   updateBest();
-  if (!beatOver) SFX.effect('lose');
-  globalAfterRun(d, coins);
 }
 
 /* ---------- update ---------- */
@@ -2122,7 +2131,7 @@ async function globalAfterRun(d, coins) {
     sbSubmit(saved, d, coins).catch(() => {});
     return;
   }
-  if (st !== 'over' || $('modal').classList.contains('on')) return;
+  if ((st !== 'over' && st !== 'menu') || $('modal').classList.contains('on')) return;
   askLeaderName(d, coins);
 }
 
