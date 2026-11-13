@@ -1,4 +1,4 @@
-const CACHE = 'sixb-run-v19';
+const CACHE = 'sixb-run-v20';
 
 const CORE = [
   './index.html',
@@ -15,7 +15,8 @@ const CORE = [
   './assets/img/yakalanmis.png',
   './assets/img/sigma_jane.webp',
   './assets/img/sewete_abla.jpg',
-  './assets/img/yavuz.png'
+  './assets/img/yavuz.png',
+  './assets/img/merve.png'
 ];
 
 function put(req, res) {
