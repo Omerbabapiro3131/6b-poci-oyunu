@@ -175,10 +175,66 @@ const SFX = (() => {
       case 'lose':
         tone(320, 120, 0.5, 'sawtooth', 0.1);
         break;
+      case 'bossWarn':
+        for (let i = 0; i < 4; i++) {
+          tone(660, 660, 0.2, 'sawtooth', 0.07, i * 0.34);
+          tone(440, 440, 0.2, 'sawtooth', 0.07, i * 0.34 + 0.17);
+        }
+        break;
+      case 'bossRumble':
+        tone(48, 30, 1.6, 'sawtooth', 0.14);
+        noiseBurst(1.4, 0.12, 300);
+        break;
+      case 'bossSlam':
+        noiseBurst(0.7, 0.5, 800);
+        tone(110, 28, 1.0, 'sawtooth', 0.32);
+        tone(60, 26, 1.3, 'sine', 0.38);
+        break;
+      case 'bossTitle':
+        tone(98, 98, 0.9, 'sawtooth', 0.12);
+        tone(147, 147, 0.9, 'square', 0.06);
+        tone(196, 196, 0.9, 'square', 0.05);
+        noiseBurst(0.3, 0.2, 2500);
+        break;
+      case 'bossThrow':
+        noiseBurst(0.14, 0.14, 3400);
+        tone(520, 180, 0.2, 'triangle', 0.07);
+        break;
+      case 'bossHit':
+        noiseBurst(0.3, 0.42, 2000);
+        tone(520, 110, 0.35, 'square', 0.14);
+        tone(180, 50, 0.45, 'sawtooth', 0.18);
+        break;
+      case 'bossOuch':
+        tone(260, 90, 0.3, 'sawtooth', 0.12);
+        break;
+      case 'bossRage':
+        tone(70, 35, 1.2, 'sawtooth', 0.25);
+        tone(140, 70, 1.2, 'square', 0.08);
+        noiseBurst(0.5, 0.2, 600);
+        break;
+      case 'orb':
+        tone(784, 784, 0.07, 'triangle', 0.12);
+        tone(1175, 1175, 0.07, 'triangle', 0.12, 0.06);
+        tone(1568, 1568, 0.14, 'triangle', 0.12, 0.12);
+        break;
+      case 'shatter':
+        noiseBurst(0.6, 0.45, 7000);
+        tone(180, 40, 0.8, 'sawtooth', 0.22);
+        for (let i = 0; i < 9; i++) {
+          setTimeout(() => {
+            noiseBurst(0.12, 0.2, 7000);
+            tone(1800 + Math.random() * 2200, 600, 0.14, 'triangle', 0.05);
+          }, 40 + i * 70);
+        }
+        break;
+      case 'bossWin':
+        [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, f, 0.16, 'square', 0.09, i * 0.13));
+        break;
       case 'ui': tone(660, 880, 0.08, 'square', 0.06); break;
       default: break;
     }
   }
 
-  return { play, loop, stopAll, setEnabled, effect };
+  return { play, loop, stopAll, setEnabled, effect, tone, noise: noiseBurst };
 })();

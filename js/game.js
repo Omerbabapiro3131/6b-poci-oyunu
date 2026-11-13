@@ -3,8 +3,10 @@
 
 const W = 941, H = 1672, HOR = 385, VP = 470, K = 5;
 const MODE_TIME = 10, OFFER_TIME = 4;
-const YAV_TIME = 30, YAV_CHANCE = 0.06;
+const YAV_TIME = 30, YAV_CHANCE = 0.025;
 const JUMP_H = 260, JUMP_LEN = 0.72, YAV_JUMP_H = 640, YAV_JUMP_LEN = 0.98;
+const BOSS_EVERY = 6000, BOSS_HP = 5, BOSS_LIVES = 3, BOSS_REWARD = 30;
+const BOSS_FEET = 860, BOSS_H = 560;
 const cv = document.getElementById('c');
 const g = cv.getContext('2d');
 const $ = id => document.getElementById(id);
@@ -38,7 +40,8 @@ const IMG_SRC = {
   ders: 'assets/img/sewete_abla.jpg',
   sinif: 'assets/img/sinif.jpg',
   seyit: 'assets/img/seyit.png',
-  yavuz: 'assets/img/yavuz.png'
+  yavuz: 'assets/img/yavuz.png',
+  merve: 'assets/img/merve.png'
 };
 for (const k in IMG_SRC) {
   const im = new Image();
@@ -58,6 +61,7 @@ const store = {
   }
 };
 let soundOn = store.get('sound', true);
+let testMode = store.get('test', false);
 SFX.setEnabled(soundOn);
 let scoreBest = (store.get('scores', [])[0] || {}).d || 0;
 
@@ -101,7 +105,8 @@ const TYPES = {
   turbo: { h: 210, pw: 'turbo', avatar: 'ders' },
   exam: { h: 220, pw: 'exam', avatar: 'exam' },
   fly: { h: 200, pw: 'fly', avatar: 'poci' },
-  yavuz: { h: 330, pw: 'yavuz', avatar: 'yavuz' }
+  yavuz: { h: 330, pw: 'yavuz', avatar: 'yavuz' },
+  borb: { h: 130, pw: 'borb' }
 };
 
 let st = 'menu';
@@ -116,6 +121,7 @@ let chase = null, offer = null, contN = 0, bestPrev = 0, recDone = false;
 let flash = 0, shake = 0, hitBy = null, caughtT = 0, overT = 0;
 let modeMusic = null, pwLoop = null, deathSnd = null, lastCoinSfx = 0;
 let yav = null, yavSnd = null, jumpHt = JUMP_H, jumpLen = JUMP_LEN;
+let boss = null, bossNext = BOSS_EVERY;
 
 /* ---------- UI ---------- */
 function setScreen(name) {
@@ -154,6 +160,7 @@ function resetRun() {
   objs = []; particles = [];
   lane = 0; px = 0; jumpT = -1; speed = 15.5; dist = 0; coins = 0; spawnAt = 18;
   stopYav(); jumpHt = JUMP_H; jumpLen = JUMP_LEN;
+  boss = null; bossNext = BOSS_EVERY;
   run = 0; scroll = 0; pw = null; pwT = 0; flyH = 0; dashLeft = 0; tilt = 0; inv = 0;
   mode = null; modeStars = 0; modeStarsTotal = 0; modeNext = 100;
   chase = null; offer = null; contN = 0; recDone = false;
@@ -192,6 +199,7 @@ function stopGameAudio() {
 function goMenu() {
   stopGameAudio();
   stopYav();
+  boss = null;
   st = 'menu';
   caughtT = 0; chase = null; hitBy = null; offer = null;
   beat = null; beatOver = false;
@@ -292,7 +300,7 @@ function pickYavuz() {
   const p = proj(0);
   spawnBurst(laneX(px, p), p.y - 120 * p.sc, 12, ['#ffd23f', '#ffffff', '#ff9d00'], 520, 900);
 }
-function updateYav(dt) {
+function updateYav(dt, hold) {
   yav.ent = Math.min(1, yav.ent + dt * 2.2);
   yav.px += (px - yav.px) * Math.min(1, dt * 8);
   if (yav.thr >= 0) {
@@ -300,7 +308,7 @@ function updateYav(dt) {
     if (yav.thr >= 1) yav.thr = -1;
   }
   if (yav.leave < 0) {
-    yav.t -= dt;
+    if (!hold) yav.t -= dt;
     if (yav.t <= 0) {
       yav.leave = 0;
       flashMessage('YAVUZ GİTTİ!');
@@ -433,6 +441,14 @@ function continueRun() {
   contN++;
   hideOffer();
   clearNear(42);
+  if (boss) {
+    objs = objs.filter(o => !o.bs);
+    boss.q = [];
+    boss.counter = null;
+    boss.lives = 2;
+    boss.cd = 1.2;
+    boss.waveOn = false;
+  }
   seyitNext = Math.max(seyitNext, run + 320);
   hitBy = null;
   inv = 2.2;
@@ -449,6 +465,7 @@ function finishOver() {
   if (st === 'over') return;
   hideOffer();
   stopYav();
+  boss = null;
   st = 'over';
   caughtT = 1;
   toggleHud(false);
@@ -505,6 +522,7 @@ function jump() {
 }
 
 function updatePlay(dt) {
+  if (boss) { updateBoss(dt); return; }
   const sp = speed * (pw === 'turbo' ? 1.7 : 1);
   dist += sp * dt * (mode ? 2 : 1);
   run += sp * dt;
@@ -552,6 +570,8 @@ function updatePlay(dt) {
     showToast('rk');
     SFX.effect('win');
   }
+
+  if (st === 'play' && !boss && !mode && dashLeft <= 0 && jumpT < 0 && dist >= bossNext) startBoss();
 
   updateHud();
 }
@@ -634,6 +654,7 @@ function updateHit(dt) {
 }
 
 function updateHud() {
+  $('testBoss').style.display = (testMode && st === 'play' && !boss) ? 'flex' : 'none';
   $('dist').textContent = Math.floor(dist) + ' m';
   $('cn').textContent = mode ? modeStars : coins + modeStarsTotal;
   $('coinLabel').textContent = mode ? 'SENTA' : '6/B';
@@ -1093,6 +1114,29 @@ function drawObj(o) {
     }
     return;
   }
+  if (o.ty === 'borb') {
+    const r = T.h * 0.5 * p.sc;
+    const y = p.y - (100 + 12 * Math.sin(t * 5 + o.d)) * p.sc - r * 0.4;
+    g.save();
+    g.globalAlpha = far;
+    const gl = g.createRadialGradient(x, y, 2, x, y, r * 2.1);
+    gl.addColorStop(0, 'rgba(255,230,120,.8)');
+    gl.addColorStop(1, 'rgba(255,200,60,0)');
+    g.fillStyle = gl;
+    g.fillRect(x - r * 2.2, y - r * 2.2, r * 4.4, r * 4.4);
+    drawStar(x, y, r * 1.1, t * 3 + o.d);
+    g.fillStyle = '#ffffff';
+    g.beginPath();
+    g.arc(x, y, r * 0.3, 0, 7);
+    g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.7)';
+    g.lineWidth = Math.max(1.5, r * 0.07);
+    g.beginPath();
+    g.arc(x, y, r * 1.45, t * 4, t * 4 + 4.2);
+    g.stroke();
+    g.restore();
+    return;
+  }
   if (o.ty === 'yavuz') {
     const hh = T.h * p.sc;
     const hop = Math.abs(Math.sin(t * 5 + o.d)) * 14 * p.sc;
@@ -1123,6 +1167,15 @@ function drawObj(o) {
     return;
   }
   shadow(x, p.y, T.h * p.sc * 0.7);
+  if (o.bs) {
+    const lift = Math.max(0, (o.d - 9) / 6) * 300;
+    g.save();
+    g.shadowColor = T.low ? 'rgba(255,205,60,.95)' : 'rgba(255,60,60,.95)';
+    g.shadowBlur = 8 + 22 * p.sc;
+    drawProp(T.prop, x, p.y - lift * p.sc, T.h * p.sc, far);
+    g.restore();
+    return;
+  }
   drawProp(T.prop, x, p.y, T.h * p.sc, far);
 }
 
@@ -1257,6 +1310,817 @@ function drawHitActor(pp) {
   const k = Math.min(1, caughtT * 4);
   const p = proj(0);
   drawProp(T.prop, pp.x + side * (160 + 90 * k), p.y - 20 - 30 * k, T.h * 0.9, 1);
+}
+
+/* ---------- MERVE MİNA boss fight ---------- */
+const TINT = {};
+function tinted(name, color) {
+  const im = IMG[name];
+  if (!im || !im.complete || !im.naturalWidth) return null;
+  const key = name + color;
+  if (!TINT[key]) {
+    const c = document.createElement('canvas');
+    c.width = im.naturalWidth;
+    c.height = im.naturalHeight;
+    const x = c.getContext('2d');
+    x.drawImage(im, 0, 0);
+    x.globalCompositeOperation = 'source-atop';
+    x.fillStyle = color;
+    x.fillRect(0, 0, c.width, c.height);
+    TINT[key] = c;
+  }
+  return TINT[key];
+}
+
+function jag(x0, y0, x1, y1, n, amp) {
+  const pts = [[x0, y0]];
+  for (let i = 1; i < n; i++) {
+    const k = i / n;
+    pts.push([x0 + (x1 - x0) * k + (Math.random() - 0.5) * amp, y0 + (y1 - y0) * k + (Math.random() - 0.5) * amp]);
+  }
+  pts.push([x1, y1]);
+  return pts;
+}
+
+function makeCrack(cx, cy, scale = 1, life = 3.2) {
+  const N = 15, rays = [];
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * Math.PI * 2 + (Math.random() - 0.5) * 0.25;
+    const len = (260 + Math.random() * 480) * scale;
+    rays.push(jag(cx, cy, cx + Math.cos(a) * len, cy + Math.sin(a) * len, 7, 26 * scale));
+  }
+  const rings = [];
+  for (const idx of [1, 2, 3, 4, 5]) {
+    for (let i = 0; i < N; i++) {
+      const a = rays[i][idx], b = rays[(i + 1) % N][idx];
+      if (a && b && Math.random() > 0.3) rings.push({ a, b, k: idx / 7 });
+    }
+  }
+  return { x: cx, y: cy, t: 0, life, rays, rings };
+}
+
+function drawCrack(c) {
+  const grow = Math.min(1, c.t / 0.24);
+  const fade = c.t > c.life ? Math.max(0, 1 - (c.t - c.life) / 0.7) : 1;
+  g.save();
+  g.globalAlpha = fade;
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
+  g.shadowColor = 'rgba(0,0,0,.65)';
+  g.shadowBlur = 8;
+  for (let pass = 0; pass < 2; pass++) {
+    g.strokeStyle = pass ? 'rgba(255,255,255,.95)' : 'rgba(150,200,255,.45)';
+    g.lineWidth = pass ? 2.6 : 6.5;
+    g.beginPath();
+    for (const r of c.rays) {
+      const m = r.length - 1;
+      const f = m * grow;
+      const full = Math.floor(f);
+      g.moveTo(r[0][0], r[0][1]);
+      for (let i = 1; i <= full; i++) g.lineTo(r[i][0], r[i][1]);
+      if (full < m) {
+        const fr = f - full;
+        g.lineTo(r[full][0] + (r[full + 1][0] - r[full][0]) * fr, r[full][1] + (r[full + 1][1] - r[full][1]) * fr);
+      }
+    }
+    for (const s of c.rings) {
+      if (grow < s.k) continue;
+      g.moveTo(s.a[0], s.a[1]);
+      g.lineTo(s.b[0], s.b[1]);
+    }
+    g.stroke();
+  }
+  g.restore();
+}
+
+function makeBodyCracks(im) {
+  const w0 = im.naturalWidth, h0 = im.naturalHeight, cx = w0 * 0.5, cy = h0 * 0.42;
+  const lines = [];
+  for (let i = 0; i < 11; i++) {
+    const a = (i / 11) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+    const len = h0 * (0.3 + Math.random() * 0.35);
+    const main = jag(cx, cy, cx + Math.cos(a) * len, cy + Math.sin(a) * len, 8, 22);
+    lines.push(main);
+    const b0 = main[3 + ((Math.random() * 3) | 0)];
+    const a2 = a + (Math.random() < 0.5 ? -1 : 1) * (0.6 + Math.random() * 0.5);
+    lines.push(jag(b0[0], b0[1], b0[0] + Math.cos(a2) * len * 0.4, b0[1] + Math.sin(a2) * len * 0.4, 4, 14));
+  }
+  return { lines, cv: document.createElement('canvas') };
+}
+
+function makeShards(im, x, feet, h, sx, sy) {
+  const sc = h / im.naturalHeight;
+  const w = im.naturalWidth * sc * sx, hh = h * sy;
+  const left = x - w / 2, top = feet - hh;
+  const COLS = 7, ROWS = 9;
+  const cw = w / COLS, ch = hh / ROWS;
+  const bx = x, by = top + hh * 0.45;
+  let data = null;
+  try {
+    const c = document.createElement('canvas');
+    c.width = im.naturalWidth;
+    c.height = im.naturalHeight;
+    const cx = c.getContext('2d');
+    cx.drawImage(im, 0, 0);
+    data = cx.getImageData(0, 0, c.width, c.height);
+  } catch (e) { data = null; }
+  const tw = im.naturalWidth / COLS, th = im.naturalHeight / ROWS;
+  const out = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (data) {
+        let a = 0;
+        for (let i = 0; i < 3; i++) {
+          for (let j = 0; j < 3; j++) {
+            const px0 = Math.min(data.width - 1, Math.floor(c * tw + tw * (i + 0.5) / 3));
+            const py0 = Math.min(data.height - 1, Math.floor(r * th + th * (j + 0.5) / 3));
+            a += data.data[(py0 * data.width + px0) * 4 + 3];
+          }
+        }
+        if (a < 60) continue;
+      }
+      const x0 = left + c * cw, y0 = top + r * ch;
+      const tris = Math.random() < 0.5
+        ? [[[0, 0], [cw, 0], [cw, ch]], [[0, 0], [cw, ch], [0, ch]]]
+        : [[[0, 0], [cw, 0], [0, ch]], [[cw, 0], [cw, ch], [0, ch]]];
+      for (const tri of tris) {
+        const gx = x0 + (tri[0][0] + tri[1][0] + tri[2][0]) / 3;
+        const gy = y0 + (tri[0][1] + tri[1][1] + tri[2][1]) / 3;
+        const dx = gx - bx, dy = gy - by, dl = Math.hypot(dx, dy) || 1;
+        const pwr = 380 + Math.random() * 700;
+        out.push({
+          x: gx, y: gy,
+          vx: dx / dl * pwr + (Math.random() - 0.5) * 200,
+          vy: dy / dl * pwr * 0.8 - 450 - Math.random() * 500,
+          rot: 0, vr: (Math.random() - 0.5) * 14,
+          life: 2.2 + Math.random() * 0.9,
+          pts: tri.map(q => [x0 + q[0] - gx, y0 + q[1] - gy]),
+          ox: left - gx, oy: top - gy, w, h: hh
+        });
+      }
+    }
+  }
+  return out;
+}
+
+function startBoss() {
+  endPower();
+  flyH = 0; dashLeft = 0; inv = 0;
+  objs = [];
+  boss = {
+    ph: 'intro', t: 0, ts: 1, slow: 0, freeze: 0,
+    hp: BOSS_HP, lives: BOSS_LIVES, rage: false,
+    flinch: 0, thr: -1, q: [], ft: 0, cd: 0.6, wave: 0, waveOn: false,
+    counter: null, rings: [], cracks: [], crackBody: null, shards: null,
+    segFlash: [0, 0, 0, 0, 0], mt: 0, ms: 0, flags: {}, hint: false, title: 0
+  };
+  SFX.effect('bossWarn');
+  updateHud();
+}
+
+function endBoss() {
+  boss = null;
+  objs = [];
+  coins += BOSS_REWARD;
+  bossNext = (Math.floor(dist / BOSS_EVERY) + 1) * BOSS_EVERY;
+  spawnAt = 66;
+  seyitNext = Math.max(seyitNext, run + 150);
+  inv = 2.2;
+  flash = 0.8;
+  shake = 0.6;
+  SFX.effect('win');
+  flashMessage('BOSS YENİLDİ! +' + BOSS_REWARD + ' ★');
+  updateHud();
+}
+
+function startWave() {
+  const b = boss;
+  const w = b.wave++;
+  const kinds = ['gap', 'jump', 'zig'];
+  const kind = w < 3 ? kinds[w] : rnd(kinds);
+  const LOW = ['koni', 'bariyer', 'kitap', 'sise'], TALL = ['pano', 'cop', 'dolap'];
+  const base = b.ft + 1.0;
+  const step = b.rage ? 0.7 : 0.85;
+  const row = (at, gapLane, allLow) => {
+    for (const L of [-1, 0, 1]) {
+      if (L === gapLane) continue;
+      b.q.push({ at, lane: L, ty: allLow || Math.random() < 0.55 ? rnd(LOW) : rnd(TALL) });
+    }
+  };
+  let last = base, orbLane = 'cur';
+  if (kind === 'gap') {
+    const gl = rnd([-1, 0, 1]);
+    row(base, gl, false);
+    orbLane = gl;
+  } else if (kind === 'jump') {
+    row(base, 9, true);
+    orbLane = 'cur';
+    last = base + 0.1;
+  } else {
+    let gl = rnd([-1, 0, 1]);
+    for (let i = 0; i < 3; i++) {
+      row(base + i * step, gl, false);
+      last = base + i * step;
+      orbLane = gl;
+      const opts = [-1, 0, 1].filter(L => L !== gl && Math.abs(L - gl) === 1);
+      gl = rnd(opts);
+    }
+  }
+  b.q.push({ at: last + (kind === 'jump' ? 0.6 : 0.45), lane: orbLane, orb: true });
+  b.waveOn = true;
+}
+
+function bossHurt(o) {
+  o.dead = 1;
+  boss.lives--;
+  const p = proj(0);
+  spawnBurst(laneX(px, p), p.y - 160, 14, ['#ff4d4d', '#ffffff', '#ffd23f'], 620, 1300);
+  if (boss.lives <= 0) {
+    hit(o);
+    return;
+  }
+  inv = 1.6;
+  flash = Math.max(flash, 0.55);
+  shake = 1;
+  SFX.effect('smash');
+  SFX.effect('bossOuch');
+}
+
+function bossOrb(o) {
+  o.dead = 1;
+  const p = proj(0);
+  const jH = jumpT >= 0 ? Math.sin(Math.PI * jumpT) * jumpHt : 0;
+  boss.counter = { t: 0, x0: laneX(px, p), y0: p.y - 220 - jH, trail: [] };
+  SFX.effect('orb');
+  flash = Math.max(flash, 0.25);
+}
+
+function bossDamage() {
+  const b = boss;
+  b.counter = null;
+  b.hp--;
+  b.segFlash[Math.max(0, b.hp)] = 1;
+  b.flinch = 1;
+  b.freeze = 0.07;
+  b.slow = 0.25;
+  flash = Math.max(flash, 0.6);
+  shake = 1.3;
+  SFX.effect('bossHit');
+  spawnBurst(VP, BOSS_FEET - 300, 22, ['#ffffff', '#ffd23f', '#ff4d6d', '#c46bff'], 900, 1500);
+  b.rings.push({ x: VP, y: BOSS_FEET - 300, t: 0, air: true });
+  if (b.hp <= 0) {
+    b.ph = 'defeat';
+    b.t = 0;
+    b.q = [];
+    b.flags = {};
+    objs = [];
+    const im = IMG.merve;
+    if (im && im.naturalWidth) b.crackBody = makeBodyCracks(im);
+    SFX.effect('bossRage');
+    return;
+  }
+  if (b.hp === 2 && !b.rage) {
+    b.rage = true;
+    flashMessage('MERVE ÖFKELENDİ!');
+    SFX.effect('bossRage');
+  } else {
+    flashMessage('VURDUN!');
+  }
+}
+
+function bossMusic(dt) {
+  const b = boss;
+  b.ms += dt;
+  const step = b.rage ? 0.15 : 0.19;
+  while (b.ms >= step) {
+    b.ms -= step;
+    const i = b.mt++ % 8;
+    if (i === 0 || i === 4 || (b.rage && i === 7)) SFX.tone(130, 38, 0.16, 'sine', 0.3);
+    if (i === 2 || i === 6) SFX.noise(0.09, 0.1, 4200);
+    SFX.noise(0.025, 0.03, 9000);
+    const bass = [55, 55, 82, 55, 65, 65, 73, 49][i];
+    SFX.tone(bass, bass, step * 0.9, 'sawtooth', 0.045);
+    if (b.rage && i % 2) {
+      const lead = [440, 523, 659, 523][(i - 1) / 2];
+      SFX.tone(lead, lead, step * 0.8, 'square', 0.02);
+    }
+  }
+}
+
+function updateBoss(dt) {
+  const b = boss;
+  for (const r of b.rings) r.t += dt * 1.5;
+  b.rings = b.rings.filter(r => r.t < 1);
+  for (const c of b.cracks) c.t += dt;
+  b.cracks = b.cracks.filter(c => c.t < c.life + 0.7);
+  for (let i = 0; i < 5; i++) if (b.segFlash[i] > 0) b.segFlash[i] = Math.max(0, b.segFlash[i] - dt * 2.2);
+  b.flinch = Math.max(0, b.flinch - dt * 2.4);
+  if (b.freeze > 0) { b.freeze -= dt; return; }
+  b.slow = Math.max(0, b.slow - dt);
+  b.ts = (b.ph === 'defeat' && b.t < 0.9) ? 0.4 : (b.slow > 0 ? 0.28 : 1);
+  const sdt = dt * b.ts;
+
+  const sk = b.ph === 'intro' ? Math.max(0.35, 1 - b.t * 0.25) : b.ph === 'fight' ? 0.75 : Math.max(0, 0.6 - b.t * 0.15);
+  scroll += 15.5 * sk * sdt;
+  px += (lane - px) * Math.min(1, dt * 14);
+  tilt *= Math.pow(0.02, dt);
+  if (jumpT >= 0) {
+    jumpT += sdt / jumpLen;
+    if (jumpT >= 1) jumpT = -1;
+  }
+  if (inv > 0) inv -= dt;
+  if (yav) updateYav(dt, true);
+  if (b.thr >= 0) {
+    b.thr += sdt / 0.45;
+    if (b.thr >= 1) b.thr = -1;
+  }
+  b.t += sdt;
+  const jh = jumpT >= 0 ? Math.sin(Math.PI * jumpT) : 0;
+
+  if (b.ph === 'intro') {
+    const t0 = b.t;
+    if (t0 > 0.8 && t0 < 2.3) {
+      shake = Math.max(shake, 0.12 + (t0 - 0.8) * 0.22);
+      if (Math.random() < dt * 22) {
+        particles.push({
+          x: Math.random() * W, y: 120 + Math.random() * 120,
+          vx: (Math.random() - 0.5) * 40, vy: 180 + Math.random() * 260,
+          life: 0.9 + Math.random() * 0.6, col: rnd(['#9aa3b5', '#c9ced8', '#6b7385']),
+          sz: 5 + Math.random() * 9, g: 200
+        });
+      }
+    }
+    if (!b.flags.rumble && t0 >= 0.9) { b.flags.rumble = 1; SFX.effect('bossRumble'); }
+    if (!b.flags.slam && t0 >= 2.3) {
+      b.flags.slam = 1;
+      flash = 1;
+      shake = 2.3;
+      SFX.effect('bossSlam');
+      b.rings.push({ x: VP, y: BOSS_FEET, t: 0 });
+      b.cracks.push(makeCrack(VP, BOSS_FEET - 240, 1, 3.0));
+      spawnBurst(VP - 120, BOSS_FEET, 18, ['#9aa3b5', '#c9ced8', '#ffffff', '#6b7385'], 760, 1300);
+      spawnBurst(VP + 120, BOSS_FEET, 18, ['#9aa3b5', '#c9ced8', '#ffffff', '#6b7385'], 760, 1300);
+    }
+    if (t0 >= 3.4) {
+      b.title = Math.min(1, (t0 - 3.4) / 0.45);
+      if (!b.flags.title) {
+        b.flags.title = 1;
+        flash = Math.max(flash, 0.5);
+        shake = Math.max(shake, 1);
+        SFX.effect('bossTitle');
+      }
+    }
+    if (t0 >= 5.9) {
+      b.ph = 'fight';
+      b.t = 0;
+      b.ft = 0;
+      b.cd = 0.6;
+      flashMessage('SAVAŞ BAŞLADI!');
+    }
+    return;
+  }
+
+  if (b.ph === 'defeat') {
+    const t0 = b.t;
+    if (!b.shards) {
+      shake = Math.max(shake, 0.25 + t0 * 1.3);
+      if (Math.random() < dt * 14) spawnBurst(VP + (Math.random() - 0.5) * 200, BOSS_FEET - 120 - Math.random() * 300, 3, ['#ffffff', '#ffd23f', '#ff4d6d'], 520, 1300);
+      if (t0 >= 0.6) {
+        const im = IMG.merve;
+        const pose = bossPose(b);
+        b.shards = (im && im.naturalWidth) ? makeShards(im, VP + pose.dx, BOSS_FEET + pose.dy + BOSS_H * 0.05, BOSS_H, pose.sx, pose.sy) : [];
+        flash = 1;
+        shake = 2.8;
+        SFX.effect('shatter');
+        b.rings.push({ x: VP, y: BOSS_FEET - 300, t: 0, air: true });
+        b.cracks.push(makeCrack(VP, BOSS_FEET - 300, 1.5, 2.6));
+        spawnBurst(VP, BOSS_FEET - 280, 36, ['#ffffff', '#ffd23f', '#ff4d6d', '#c46bff', '#9fd4ff'], 1100, 1500);
+      }
+    } else {
+      for (const q of b.shards) {
+        q.vy += 1900 * sdt;
+        q.x += q.vx * sdt;
+        q.y += q.vy * sdt;
+        q.rot += q.vr * sdt;
+        q.life -= sdt;
+      }
+      b.shards = b.shards.filter(q => q.life > 0);
+    }
+    if (t0 >= 1.2 && !b.flags.win) { b.flags.win = 1; SFX.effect('bossWin'); }
+    if (t0 >= 4.7) endBoss();
+    return;
+  }
+
+  /* fight */
+  b.ft += sdt;
+  bossMusic(dt);
+  let threw = false;
+  const rest = [];
+  for (const it of b.q) {
+    if (b.ft < it.at) { rest.push(it); continue; }
+    if (it.orb) {
+      const L = it.lane === 'cur' ? clamp(Math.round(px), -1, 1) : it.lane;
+      objs.push({ ty: 'borb', lane: L, d: 15, bs: true, orb: true });
+      if (!b.hint) { b.hint = true; flashMessage('YILDIZI TOPLA!'); }
+    } else {
+      objs.push({ ty: it.ty, lane: it.lane, d: 15, bs: true });
+      threw = true;
+    }
+  }
+  b.q = rest;
+  if (threw) { b.thr = 0; SFX.effect('bossThrow'); }
+
+  const SS = b.rage ? 19 : 16;
+  const cl = Math.round(px);
+  for (const o of objs) {
+    if (!o.bs || o.dead) continue;
+    o.d -= SS * sdt;
+    if (o.orb) {
+      if (o.lane === cl && o.d < 0.9 && o.d > -0.4 && jh < 0.5) bossOrb(o);
+      continue;
+    }
+    if (o.lane !== cl || o.d > 0.6 || o.d < -0.2) continue;
+    const T = TYPES[o.ty];
+    if (T.low && jh > 0.35) continue;
+    if (jumpHt > YAV_JUMP_H - 1 && jh > 0.52) continue;
+    if (inv > 0) continue;
+    bossHurt(o);
+    if (st !== 'play') return;
+  }
+  objs = objs.filter(o => !o.dead && o.d > -1.3);
+
+  if (b.counter) {
+    const c = b.counter;
+    c.t += sdt / 0.42;
+    const k = Math.min(1, c.t);
+    const k2 = k * k * (3 - 2 * k);
+    c.trail.push([c.x0 + (VP - c.x0) * k2 - Math.sin(k2 * Math.PI) * 120, c.y0 + (BOSS_FEET - 300 - c.y0) * k2 - Math.sin(k2 * Math.PI) * 160]);
+    if (c.trail.length > 14) c.trail.shift();
+    if (c.t >= 1) {
+      bossDamage();
+      return;
+    }
+  }
+
+  const active = b.q.length || objs.some(o => o.bs && !o.dead) || b.counter;
+  if (!active) {
+    if (b.waveOn) { b.waveOn = false; b.cd = b.rage ? 0.6 : 0.9; }
+    b.cd -= sdt;
+    if (b.cd <= 0) startWave();
+  }
+}
+
+function bossPose(b) {
+  const o = { vis: true, dx: 0, dy: 0, sx: 1, sy: 1, rot: 0 };
+  if (b.ph === 'intro') {
+    if (b.t < 1.8) o.vis = false;
+    else if (b.t < 2.3) {
+      const k = (b.t - 1.8) / 0.5;
+      o.dy = -(1 - k * k) * 1300;
+    } else {
+      const k = b.t - 2.3;
+      const sq = Math.exp(-k * 6) * Math.cos(k * 16) * 0.13;
+      o.sy = 1 - sq;
+      o.sx = 1 + sq * 0.7;
+    }
+  }
+  if (b.ph !== 'intro' || b.t >= 2.3) o.dy += Math.sin(t * 2.2) * 7;
+  if (b.thr >= 0) {
+    const k = Math.sin(Math.PI * b.thr);
+    o.rot += 0.05 * k;
+    o.sy += 0.05 * k;
+    o.dy += 10 * k;
+  }
+  if (b.flinch > 0) o.dx += (Math.random() - 0.5) * 44 * b.flinch;
+  if (b.ph === 'defeat' && !b.shards) {
+    const p = Math.min(1, b.t / 0.6);
+    o.dx += (Math.random() - 0.5) * (8 + 46 * p);
+    o.dy += (Math.random() - 0.5) * 10 * p;
+  }
+  if (b.ph === 'defeat' && b.shards) o.vis = false;
+  return o;
+}
+
+function drawBoss() {
+  const b = boss, im = IMG.merve;
+  if (!im || !im.complete || !im.naturalWidth) return;
+  const o = bossPose(b);
+  if (b.ph === 'intro') {
+    if (b.t > 1.2 && b.t < 2.3) {
+      const k = clamp((b.t - 1.2) / 1.1, 0, 1);
+      shadow(VP, BOSS_FEET, 700 * k, 0.55 * k);
+    } else if (b.t >= 2.3) shadow(VP, BOSS_FEET + 6, 560, 0.45);
+  } else if (!b.shards) shadow(VP, BOSS_FEET + 6, 560, 0.45);
+
+  const w = BOSS_H * im.naturalWidth / im.naturalHeight;
+  if (o.vis) {
+    const x = VP + o.dx, feet = BOSS_FEET + o.dy + BOSS_H * 0.05;
+    g.save();
+    if (b.rage || b.ph === 'defeat') {
+      g.shadowColor = 'rgba(255,40,40,.9)';
+      g.shadowBlur = 50 + 20 * Math.sin(t * 10);
+    } else {
+      g.shadowColor = 'rgba(190,60,255,.75)';
+      g.shadowBlur = 34;
+    }
+    g.translate(x, feet);
+    g.rotate(o.rot);
+    g.scale(o.sx, o.sy);
+    g.drawImage(im, -w / 2, -BOSS_H, w, BOSS_H);
+    g.restore();
+    if (b.flinch > 0) {
+      const tc = tinted('merve', '#ff2a2a');
+      if (tc) {
+        g.save();
+        g.globalAlpha = b.flinch * 0.75;
+        g.translate(x, feet);
+        g.rotate(o.rot);
+        g.scale(o.sx, o.sy);
+        g.drawImage(tc, -w / 2, -BOSS_H, w, BOSS_H);
+        g.restore();
+      }
+    }
+    if (b.ph === 'defeat' && b.crackBody) {
+      const bc = b.crackBody, p = Math.min(1, b.t / 0.6);
+      bc.cv.width = im.naturalWidth;
+      bc.cv.height = im.naturalHeight;
+      const c2 = bc.cv.getContext('2d');
+      c2.lineCap = 'round';
+      c2.lineJoin = 'round';
+      for (let pass = 0; pass < 2; pass++) {
+        c2.strokeStyle = pass ? '#ffffff' : 'rgba(255,210,63,.8)';
+        c2.lineWidth = pass ? 3 : 8;
+        c2.beginPath();
+        for (const ln of bc.lines) {
+          const m = ln.length - 1, f = m * p, full = Math.floor(f);
+          c2.moveTo(ln[0][0], ln[0][1]);
+          for (let i = 1; i <= full; i++) c2.lineTo(ln[i][0], ln[i][1]);
+          if (full < m) {
+            const fr = f - full;
+            c2.lineTo(ln[full][0] + (ln[full + 1][0] - ln[full][0]) * fr, ln[full][1] + (ln[full + 1][1] - ln[full][1]) * fr);
+          }
+        }
+        c2.stroke();
+      }
+      c2.globalCompositeOperation = 'destination-in';
+      c2.drawImage(im, 0, 0);
+      g.save();
+      g.translate(x, feet);
+      g.rotate(o.rot);
+      g.scale(o.sx, o.sy);
+      g.drawImage(bc.cv, -w / 2, -BOSS_H, w, BOSS_H);
+      g.restore();
+    }
+  }
+  if (b.shards) {
+    for (const q of b.shards) {
+      g.save();
+      g.globalAlpha = Math.min(1, q.life * 1.2);
+      g.translate(q.x, q.y);
+      g.rotate(q.rot);
+      g.beginPath();
+      g.moveTo(q.pts[0][0], q.pts[0][1]);
+      g.lineTo(q.pts[1][0], q.pts[1][1]);
+      g.lineTo(q.pts[2][0], q.pts[2][1]);
+      g.closePath();
+      g.clip();
+      g.drawImage(im, q.ox, q.oy, q.w, q.h);
+      g.restore();
+    }
+  }
+}
+
+function drawBossFloor() {
+  const b = boss;
+  if (b.ph !== 'fight' || !b.q.length) return;
+  const pulse = 0.5 + 0.5 * Math.sin(t * 16);
+  const p0 = proj(0.3), p1 = proj(15);
+  for (const it of b.q) {
+    if (it.orb) continue;
+    const low = TYPES[it.ty].low;
+    const rgb = low ? '255,205,60' : '255,60,60';
+    g.save();
+    g.fillStyle = 'rgba(' + rgb + ',' + (0.2 + 0.16 * pulse) + ')';
+    g.beginPath();
+    g.moveTo(laneX(it.lane - 0.44, p1), p1.y);
+    g.lineTo(laneX(it.lane + 0.44, p1), p1.y);
+    g.lineTo(laneX(it.lane + 0.44, p0), p0.y);
+    g.lineTo(laneX(it.lane - 0.44, p0), p0.y);
+    g.closePath();
+    g.fill();
+    g.strokeStyle = 'rgba(' + rgb + ',.85)';
+    g.lineWidth = 4;
+    g.lineJoin = 'round';
+    for (let k = 0; k < 5; k++) {
+      const d = (t * 9 + k * 3.2) % 15;
+      const p = proj(d);
+      const cx = laneX(it.lane, p), hw = (2 / 3) * p.h * 0.3, hh = (2 / 3) * p.h * 0.22;
+      g.beginPath();
+      g.moveTo(cx - hw, p.y - hh);
+      g.lineTo(cx, p.y);
+      g.lineTo(cx + hw, p.y - hh);
+      g.stroke();
+    }
+    g.restore();
+  }
+}
+
+function bossBarK(b) {
+  if (b.ph === 'intro') {
+    if (b.t < 0.7) return easeOutCubic(b.t / 0.7);
+    if (b.t < 5.2) return 1;
+    return 1 - easeOutCubic(clamp((b.t - 5.2) / 0.7, 0, 1));
+  }
+  if (b.ph === 'defeat') {
+    if (b.t < 0.5) return easeOutCubic(b.t / 0.5);
+    if (b.t < 4.0) return 1;
+    return 1 - easeOutCubic(clamp((b.t - 4.0) / 0.6, 0, 1));
+  }
+  return 0;
+}
+
+function bossText(txt, x, y, size, fill, stroke, spacing, maxW = 860) {
+  const font = s => '900 ' + s + 'px "Arial Black","Segoe UI",system-ui,sans-serif';
+  g.font = font(size);
+  const meas = () => {
+    let tot = 0;
+    for (const ch of txt) tot += g.measureText(ch).width + spacing;
+    return tot - spacing;
+  };
+  let tot = meas();
+  if (tot > maxW) {
+    size = size * maxW / tot;
+    spacing = spacing * maxW / tot;
+    g.font = font(size);
+    tot = meas();
+  }
+  g.textAlign = 'left';
+  g.textBaseline = 'middle';
+  g.lineJoin = 'round';
+  g.lineWidth = Math.max(4, size * 0.12);
+  let cx = x - tot / 2;
+  for (const ch of txt) {
+    const cw = g.measureText(ch).width;
+    if (stroke) { g.strokeStyle = stroke; g.strokeText(ch, cx, y); }
+    g.fillStyle = fill;
+    g.fillText(ch, cx, y);
+    cx += cw + spacing;
+  }
+}
+
+function drawHeart(x, y, s, fill, stroke) {
+  g.beginPath();
+  g.moveTo(x, y + s * 0.9);
+  g.bezierCurveTo(x - s * 1.5, y - s * 0.1, x - s * 0.8, y - s * 1.1, x, y - s * 0.35);
+  g.bezierCurveTo(x + s * 0.8, y - s * 1.1, x + s * 1.5, y - s * 0.1, x, y + s * 0.9);
+  g.closePath();
+  if (fill) { g.fillStyle = fill; g.fill(); }
+  g.lineWidth = 3;
+  g.strokeStyle = stroke;
+  g.stroke();
+}
+
+function drawBossHud(b, alpha) {
+  const x0 = 180, y0 = 258, w = 580, h = 30, n = BOSS_HP, gap = 10;
+  const sw = (w - gap * (n - 1)) / n;
+  g.save();
+  g.globalAlpha = alpha;
+  g.font = '900 30px "Arial Black","Segoe UI",system-ui,sans-serif';
+  g.textAlign = 'left';
+  g.textBaseline = 'bottom';
+  g.lineWidth = 6;
+  g.lineJoin = 'round';
+  g.strokeStyle = '#12060a';
+  g.fillStyle = b.rage ? '#ffb0b0' : '#ffd9e0';
+  g.strokeText('MERVE MİNA', x0, y0 - 6);
+  g.fillText('MERVE MİNA', x0, y0 - 6);
+  for (let i = 0; i < n; i++) {
+    const x = x0 + i * (sw + gap);
+    g.fillStyle = 'rgba(10,6,14,.78)';
+    rr(x, y0, sw, h, 8);
+    g.fill();
+    if (i < b.hp) {
+      const gr = g.createLinearGradient(0, y0, 0, y0 + h);
+      gr.addColorStop(0, b.rage ? '#ff5a3c' : '#ff6b8a');
+      gr.addColorStop(1, b.rage ? '#a50f0f' : '#c4163f');
+      g.fillStyle = gr;
+      rr(x + 3, y0 + 3, sw - 6, h - 6, 6);
+      g.fill();
+    } else if (b.segFlash[i] > 0) {
+      g.fillStyle = 'rgba(255,255,255,' + b.segFlash[i] + ')';
+      rr(x + 3, y0 + 3, sw - 6, h - 6, 6);
+      g.fill();
+    }
+    g.lineWidth = 3;
+    g.strokeStyle = b.rage ? '#ff5a5a' : '#ffd23f';
+    rr(x, y0, sw, h, 8);
+    g.stroke();
+  }
+  if (b.ph === 'fight' || st === 'hit') {
+    for (let i = 0; i < BOSS_LIVES; i++) {
+      const on = i < b.lives;
+      g.globalAlpha = alpha * (on && inv > 0 && Math.sin(t * 30) > 0 ? 0.4 : 1);
+      drawHeart(x0 + 24 + i * 62, 346, 22, on ? '#ff3b57' : 'rgba(20,10,16,.75)', on ? '#ffffff' : '#7a5a66');
+    }
+  }
+  g.restore();
+}
+
+function drawBossFx(dt) {
+  const b = boss;
+  if (b.ph === 'intro' && b.t < 2.4) {
+    const a = (0.1 + 0.1 * Math.sin(b.t * 14)) * Math.min(1, b.t * 2) * (b.t > 1.9 ? Math.max(0, (2.4 - b.t) / 0.5) : 1);
+    g.fillStyle = 'rgba(255,0,0,' + a + ')';
+    g.fillRect(0, 0, W, H);
+  }
+  for (const r of b.rings) {
+    const k = r.t, rx = 80 + k * 760;
+    g.save();
+    g.globalAlpha = (1 - k) * 0.85;
+    g.strokeStyle = '#ffffff';
+    g.lineWidth = 10 * (1 - k) + 2;
+    g.beginPath();
+    g.ellipse(r.x, r.y, rx, r.air ? rx : rx * 0.22, 0, 0, 7);
+    g.stroke();
+    g.restore();
+  }
+  if (b.counter) {
+    const c = b.counter;
+    for (let i = 0; i < c.trail.length; i++) {
+      const q = c.trail[i], f = (i + 1) / c.trail.length;
+      g.save();
+      g.globalAlpha = f * 0.6;
+      g.fillStyle = '#ffd23f';
+      g.beginPath();
+      g.arc(q[0], q[1], 30 * f, 0, 7);
+      g.fill();
+      g.restore();
+    }
+    const q = c.trail[c.trail.length - 1];
+    if (q) {
+      const k = Math.min(1, c.t);
+      drawStar(q[0], q[1], 62 * (1 - 0.4 * k), t * 14);
+      g.save();
+      g.fillStyle = '#ffffff';
+      g.beginPath();
+      g.arc(q[0], q[1], 16, 0, 7);
+      g.fill();
+      g.restore();
+    }
+  }
+  for (const c of b.cracks) drawCrack(c);
+
+  const bk = bossBarK(b);
+  if (bk > 0) {
+    const bh = 150 * bk;
+    g.fillStyle = '#000';
+    g.fillRect(0, 0, W, bh);
+    g.fillRect(0, H - bh, W, bh);
+  }
+
+  if (b.ph === 'intro') {
+    if (b.t > 0.3 && b.t < 2.1) {
+      g.save();
+      g.globalAlpha = Math.sin(b.t * 18) > -0.3 ? 1 : 0.25;
+      bossText('UYARI!', W / 2, 640, 170, '#ff2a2a', '#ffffff', 10);
+      bossText('BÜYÜK TEHLİKE YAKLAŞIYOR', W / 2, 770, 40, '#ffd23f', '#1a0a0a', 4);
+      g.restore();
+    }
+    if (b.t >= 3.4 && b.t < 5.5) {
+      const k = b.title, fo = b.t > 5.0 ? Math.max(0, 1 - (b.t - 5.0) / 0.5) : 1;
+      const sc = 1 + (1 - easeOutBack(k)) * 1.2;
+      g.save();
+      g.globalAlpha = Math.min(1, k * 2) * fo;
+      g.translate(W / 2 + (Math.random() - 0.5) * 6 * (1 - k), 1010);
+      g.scale(sc, sc);
+      g.shadowColor = 'rgba(255,40,90,.9)';
+      g.shadowBlur = 40;
+      bossText('MERVE MİNA', 0, 0, 112, '#ffffff', '#b0102e', 6);
+      g.shadowBlur = 0;
+      bossText('BOSS SAVAŞI', 0, 92, 42, '#ffd23f', '#1a0a0a', 14);
+      g.restore();
+    }
+    if (b.t >= 3.4) drawBossHud(b, b.t > 5.0 ? 1 : Math.min(1, b.title));
+  } else if (b.ph === 'fight') {
+    drawBossHud(b, 1);
+  } else if (b.ph === 'defeat') {
+    drawBossHud(b, b.t < 3.6 ? 1 : Math.max(0, 1 - (b.t - 3.6) / 0.4));
+    if (b.t >= 1.2 && b.t < 4.3) {
+      const k = clamp((b.t - 1.2) / 0.5, 0, 1), fo = b.t > 3.8 ? Math.max(0, 1 - (b.t - 3.8) / 0.5) : 1;
+      const sc = 1 + (1 - easeOutBack(k)) * 0.9;
+      g.save();
+      g.globalAlpha = k * fo;
+      g.translate(W / 2, 1000);
+      g.scale(sc, sc);
+      g.shadowColor = 'rgba(255,210,63,.9)';
+      g.shadowBlur = 36;
+      bossText('MERVE MİNA', 0, -70, 54, '#ffffff', '#12060a', 8);
+      bossText('YENİLDİ!', 0, 22, 124, '#ffd23f', '#7a3d00', 6);
+      g.shadowBlur = 0;
+      if (b.t >= 2.0) bossText('+' + BOSS_REWARD + ' ★  BOSS ÖDÜLÜ', 0, 118, 40, '#ffffff', '#12060a', 5);
+      g.restore();
+    }
+  }
 }
 
 /* ---------- seyit beatdown cutscene ---------- */
@@ -2073,6 +2937,7 @@ function render(dt) {
     drawMenu();
   } else {
     drawChase(dt);
+    if (boss) { drawBoss(); drawBossFloor(); }
     const hb = (st === 'hit' || st === 'over') ? hitBy : null;
     const vis = objs.filter(o => o !== hb && !o.dead);
     const far = vis.filter(o => o.d >= 0).sort((a, b) => b.d - a.d);
@@ -2083,6 +2948,7 @@ function render(dt) {
     drawYavuz(true);
     for (const o of near) drawObj(o);
     drawParticles(dt);
+    if (boss) drawBossFx(dt);
     if (mode) {
       g.fillStyle = 'rgba(255,170,40,.07)';
       g.fillRect(0, 0, W, H);
@@ -2579,9 +3445,17 @@ for (const [id, fn] of [['tL', () => move(-1)], ['tJ', jump], ['tR', () => move(
   el.addEventListener('contextmenu', e => e.preventDefault());
 }
 
+$('testBoss').onclick = e => {
+  e.stopPropagation();
+  e.currentTarget.blur();
+  if (st !== 'play' || boss) return;
+  if (mode) endMode();
+  startBoss();
+};
+
 $('setBtn').onclick = () => {
   const draw = () => {
-    openModal('<h2>AYARLAR</h2><button class="b b2" id="snd">SES: ' + (soundOn ? 'AÇIK' : 'KAPALI') + '</button><button class="b b2" id="modeSet">MOD: ' + MODE_LABEL[playMode] + '</button><button class="b b2" id="admBtn">YÖNETİCİ MODU</button><button class="b b2" id="cl">KAPAT</button>');
+    openModal('<h2>AYARLAR</h2><button class="b b2" id="snd">SES: ' + (soundOn ? 'AÇIK' : 'KAPALI') + '</button><button class="b b2" id="modeSet">MOD: ' + MODE_LABEL[playMode] + '</button><button class="b b2" id="testSet">TEST MODU: ' + (testMode ? 'AÇIK' : 'KAPALI') + '</button><button class="b b2" id="admBtn">YÖNETİCİ MODU</button><button class="b b2" id="cl">KAPAT</button>');
     $('snd').onclick = () => {
       soundOn = !soundOn;
       store.set('sound', soundOn);
@@ -2590,6 +3464,12 @@ $('setBtn').onclick = () => {
       draw();
     };
     $('modeSet').onclick = () => { closeModal(); setScreen('modes'); };
+    $('testSet').onclick = () => {
+      testMode = !testMode;
+      store.set('test', testMode);
+      SFX.effect('ui');
+      draw();
+    };
     $('admBtn').onclick = adminLogin;
     $('cl').onclick = () => { closeModal(); };
   };
