@@ -3,7 +3,7 @@
 
 const W = 941, H = 1672, HOR = 385, VP = 470, K = 5;
 const MODE_TIME = 10, OFFER_TIME = 4;
-const YAV_TIME = 30, YAV_CHANCE = 0.05;
+const YAV_TIME = 30, YAV_CHANCE = 0.06;
 const JUMP_H = 260, JUMP_LEN = 0.72, YAV_JUMP_H = 640, YAV_JUMP_LEN = 0.98;
 const cv = document.getElementById('c');
 const g = cv.getContext('2d');
