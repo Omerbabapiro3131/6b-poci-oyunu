@@ -5,7 +5,8 @@ const SFX = (() => {
     ders: 'assets/audio/pexian.mp3',
     jole: 'assets/audio/jole_music.mp3',
     alo: 'assets/audio/alo_arif.mp3',
-    dikidis: 'assets/audio/dikidis.mp3'
+    dikidis: 'assets/audio/dikidis.mp3',
+    yavuz: 'assets/audio/yavuz.mp3'
   };
   let enabled = true;
   let ac = null;

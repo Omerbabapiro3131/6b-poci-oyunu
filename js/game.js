@@ -3,6 +3,8 @@
 
 const W = 941, H = 1672, HOR = 385, VP = 470, K = 5;
 const MODE_TIME = 10, OFFER_TIME = 4;
+const YAV_TIME = 30, YAV_CHANCE = 0.05;
+const JUMP_H = 260, JUMP_LEN = 0.72, YAV_JUMP_H = 640, YAV_JUMP_LEN = 0.98;
 const cv = document.getElementById('c');
 const g = cv.getContext('2d');
 const $ = id => document.getElementById(id);
@@ -35,7 +37,8 @@ const IMG_SRC = {
   exam: 'assets/img/sigma_jane.webp',
   ders: 'assets/img/sewete_abla.jpg',
   sinif: 'assets/img/sinif.jpg',
-  seyit: 'assets/img/seyit.png'
+  seyit: 'assets/img/seyit.png',
+  yavuz: 'assets/img/yavuz.png'
 };
 for (const k in IMG_SRC) {
   const im = new Image();
@@ -97,7 +100,8 @@ const TYPES = {
   coin: { h: 120, coin: true },
   turbo: { h: 210, pw: 'turbo', avatar: 'ders' },
   exam: { h: 220, pw: 'exam', avatar: 'exam' },
-  fly: { h: 200, pw: 'fly', avatar: 'poci' }
+  fly: { h: 200, pw: 'fly', avatar: 'poci' },
+  yavuz: { h: 330, pw: 'yavuz', avatar: 'yavuz' }
 };
 
 let st = 'menu';
@@ -111,6 +115,7 @@ let beat = null, beatOver = false;
 let chase = null, offer = null, contN = 0, bestPrev = 0, recDone = false;
 let flash = 0, shake = 0, hitBy = null, caughtT = 0, overT = 0;
 let modeMusic = null, pwLoop = null, deathSnd = null, lastCoinSfx = 0;
+let yav = null, yavSnd = null, jumpHt = JUMP_H, jumpLen = JUMP_LEN;
 
 /* ---------- UI ---------- */
 function setScreen(name) {
@@ -148,6 +153,7 @@ function notifyCoin() {
 function resetRun() {
   objs = []; particles = [];
   lane = 0; px = 0; jumpT = -1; speed = 15.5; dist = 0; coins = 0; spawnAt = 18;
+  stopYav(); jumpHt = JUMP_H; jumpLen = JUMP_LEN;
   run = 0; scroll = 0; pw = null; pwT = 0; flyH = 0; dashLeft = 0; tilt = 0; inv = 0;
   mode = null; modeStars = 0; modeStarsTotal = 0; modeNext = 100;
   chase = null; offer = null; contN = 0; recDone = false;
@@ -185,6 +191,7 @@ function stopGameAudio() {
 
 function goMenu() {
   stopGameAudio();
+  stopYav();
   st = 'menu';
   caughtT = 0; chase = null; hitBy = null; offer = null;
   beat = null; beatOver = false;
@@ -237,7 +244,9 @@ function spawnRow(d) {
     objs.push({ ty, lane: lanes[i], d });
   }
   const free = lanes[nObs];
-  if (!mode && Math.random() < 0.1) {
+  if (!mode && !yav && run > 120 && Math.random() < YAV_CHANCE && !objs.some(o => o.ty === 'yavuz' && !o.dead)) {
+    objs.push({ ty: 'yavuz', lane: free, d: d + 1 });
+  } else if (!mode && Math.random() < 0.1) {
     objs.push({ ty: rnd(['turbo', 'exam', 'fly']), lane: free, d: d + 1 });
   } else {
     for (let k = 0; k < 4; k++) objs.push({ ty: 'coin', lane: free, d: d + k * 1.4 });
@@ -262,8 +271,52 @@ function endPower() {
   updateHud();
 }
 
+function stopYavSnd() {
+  if (yavSnd) { try { yavSnd.pause(); yavSnd.currentTime = 0; } catch (e) {} yavSnd = null; }
+}
+function stopYav() {
+  yav = null;
+  stopYavSnd();
+}
+function yavActive() { return !!yav && yav.leave < 0; }
+function pickYavuz() {
+  if (yav) {
+    yav.t = YAV_TIME;
+    yav.leave = -1;
+  } else {
+    yav = { t: YAV_TIME, ent: 0, px, thr: -1, leave: -1 };
+  }
+  flashMessage('YAVUZ ARKANDA!');
+  SFX.effect('pickup');
+  flash = Math.max(flash, 0.4);
+  const p = proj(0);
+  spawnBurst(laneX(px, p), p.y - 120 * p.sc, 12, ['#ffd23f', '#ffffff', '#ff9d00'], 520, 900);
+}
+function updateYav(dt) {
+  yav.ent = Math.min(1, yav.ent + dt * 2.2);
+  yav.px += (px - yav.px) * Math.min(1, dt * 8);
+  if (yav.thr >= 0) {
+    yav.thr += dt / 0.5;
+    if (yav.thr >= 1) yav.thr = -1;
+  }
+  if (yav.leave < 0) {
+    yav.t -= dt;
+    if (yav.t <= 0) {
+      yav.leave = 0;
+      flashMessage('YAVUZ GİTTİ!');
+    }
+  } else {
+    yav.leave += dt / 0.9;
+    if (yav.leave >= 1) yav = null;
+  }
+}
+
 function pick(o) {
   o.dead = 1;
+  if (o.ty === 'yavuz') {
+    pickYavuz();
+    return;
+  }
   if (o.ty === 'turbo') {
     setPower('turbo', 4);
     flashMessage('DERS BOŞ!');
@@ -337,6 +390,7 @@ function hit(o) {
     $('modeBanner').classList.remove('on');
   }
   endPower();
+  stopYavSnd();
   deathSnd = SFX.play('dikidis', { volume: 0.85 });
   SFX.effect('crash');
   updateHud();
@@ -394,6 +448,7 @@ function continueRun() {
 function finishOver() {
   if (st === 'over') return;
   hideOffer();
+  stopYav();
   st = 'over';
   caughtT = 1;
   toggleHud(false);
@@ -434,6 +489,18 @@ function jump() {
   if (pw === 'fly') return;
   if (jumpT >= 0) return;
   jumpT = 0;
+  if (yavActive()) {
+    jumpHt = YAV_JUMP_H;
+    jumpLen = YAV_JUMP_LEN;
+    yav.thr = 0;
+    stopYavSnd();
+    yavSnd = SFX.play('yavuz', { volume: 1 });
+    const p = proj(0);
+    spawnBurst(laneX(px, p), p.y - 20 * p.sc, 10, ['#ffd23f', '#ffffff', '#ff9d00'], 520, 1000);
+  } else {
+    jumpHt = JUMP_H;
+    jumpLen = JUMP_LEN;
+  }
   SFX.effect('jump');
 }
 
@@ -446,10 +513,11 @@ function updatePlay(dt) {
   px += (lane - px) * Math.min(1, dt * 14);
   tilt *= Math.pow(0.02, dt);
   if (jumpT >= 0) {
-    jumpT += dt / 0.72;
+    jumpT += dt / jumpLen;
     if (jumpT >= 1) jumpT = -1;
   }
   if (inv > 0) inv -= dt;
+  if (yav) updateYav(dt);
   if (pw) {
     pwT -= dt;
     if (pwT <= 0) endPower();
@@ -533,10 +601,12 @@ function collide(dt) {
         continue;
       }
       if (inv > 0 || pw === 'fly' || flyH > 0.3) continue;
+      if (jumpHt > YAV_JUMP_H - 1 && jh > 0.52) continue;
       startBeat(o);
       return;
     }
     if (T.low && jh > 0.35) continue;
+    if (jumpHt > YAV_JUMP_H - 1 && jh > 0.52) continue;
     if (inv > 0) continue;
     if (pw === 'fly' || flyH > 0.3) continue;
     if (pw) {
@@ -568,10 +638,14 @@ function updateHud() {
   $('cn').textContent = mode ? modeStars : coins + modeStarsTotal;
   $('coinLabel').textContent = mode ? 'SENTA' : '6/B';
   const pe = $('pw');
-  if (pw) {
+  const yavOn = !!yav && yav.leave < 0;
+  if (pw || yavOn) {
+    const parts = [];
+    if (pw) parts.push((pw === 'turbo' ? 'DERS BOŞ ' : pw === 'exam' ? 'KONUŞMA SINAVI ' : 'POÇİ KAÇIŞI ') + Math.ceil(pwT) + 's');
+    if (yavOn) parts.push('YAVUZ ' + Math.ceil(yav.t) + 's');
     pe.hidden = false;
     pe.style.display = 'flex';
-    pe.textContent = (pw === 'turbo' ? 'DERS BOŞ ' : pw === 'exam' ? 'KONUŞMA SINAVI ' : 'POÇİ KAÇIŞI ') + Math.ceil(pwT) + 's';
+    pe.textContent = parts.join(' · ');
   } else {
     pe.hidden = true;
     pe.style.display = 'none';
@@ -1019,6 +1093,29 @@ function drawObj(o) {
     }
     return;
   }
+  if (o.ty === 'yavuz') {
+    const hh = T.h * p.sc;
+    const hop = Math.abs(Math.sin(t * 5 + o.d)) * 14 * p.sc;
+    shadow(x, p.y, hh * 0.6);
+    g.save();
+    g.shadowColor = '#ffd23f';
+    g.shadowBlur = 10 + 36 * p.sc;
+    drawSprite('yavuz', x, p.y - hop, hh, far);
+    g.restore();
+    const fs = Math.max(10, 44 * p.sc);
+    g.save();
+    g.globalAlpha = far;
+    g.font = '900 ' + fs + 'px "Arial Black",system-ui,sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.lineWidth = Math.max(2, fs * 0.16);
+    g.strokeStyle = '#1a1206';
+    g.fillStyle = '#ffd23f';
+    g.strokeText('YAVUZ', x, p.y - hh - fs * 0.7 - hop);
+    g.fillText('YAVUZ', x, p.y - hh - fs * 0.7 - hop);
+    g.restore();
+    return;
+  }
   if (T.pw) {
     const r = T.h * 0.5 * p.sc;
     const y = p.y - (120 + 16 * Math.sin(t * 4 + o.d)) * p.sc - r;
@@ -1049,9 +1146,30 @@ function drawChase(dt) {
   }
 }
 
+function drawYavuz(front) {
+  if (!yav) return;
+  const isFront = yav.ent < 0.45 && yav.leave < 0;
+  if (isFront !== front) return;
+  const p = proj(0);
+  const e = 1 - Math.pow(1 - yav.ent, 3);
+  const lv = yav.leave >= 0 ? yav.leave : 0;
+  const k = yav.thr >= 0 ? Math.sin(Math.PI * yav.thr) : 0;
+  const bob = (yav.thr >= 0 || lv > 0 || jumpT >= 0) ? 0 : Math.abs(Math.sin(t * 12 + 1.3)) * 12;
+  const x = laneX(yav.px, p) + (-72 * e + 58 * k) - 230 * lv;
+  const feet = p.y - 30 * e - bob - 90 * k - 60 * lv;
+  const h = 345 * (1 - 0.07 * e) * (1 + 0.05 * k) * (1 - 0.3 * lv);
+  const alpha = 1 - lv;
+  shadow(laneX(yav.px, p) + (-72 * e) - 230 * lv, p.y - 30 * e, 200 * (1 - 0.3 * lv), 0.27 * alpha);
+  g.save();
+  g.shadowColor = '#ffd23f';
+  g.shadowBlur = 22 + 8 * Math.sin(t * 6);
+  drawSprite('yavuz', x, feet, h, alpha, 0.2 * k + Math.sin(t * 12 + 1.3) * 0.02);
+  g.restore();
+}
+
 function drawPlayer() {
   const p = proj(0);
-  const jumpH = jumpT >= 0 ? Math.sin(Math.PI * jumpT) * 260 : 0;
+  const jumpH = jumpT >= 0 ? Math.sin(Math.PI * jumpT) * jumpHt : 0;
   const fly = flyH * (300 + 18 * Math.sin(t * 5));
   const bob = (jumpT >= 0 || st === 'hit' || st === 'over') ? 0 : Math.abs(Math.sin(t * 12)) * 14;
   const fallen = st === 'hit' || st === 'over';
@@ -1197,6 +1315,7 @@ function startBeat(o) {
   inv = 0;
   offer = null;
   hideOffer();
+  stopYav();
   if (mode) {
     if (modeMusic) { modeMusic.stop(120); modeMusic = null; }
     modeStarsTotal += modeStars;
@@ -1959,7 +2078,9 @@ function render(dt) {
     const far = vis.filter(o => o.d >= 0).sort((a, b) => b.d - a.d);
     const near = vis.filter(o => o.d < 0);
     for (const o of far) drawObj(o);
+    drawYavuz(false);
     const pp = drawPlayer();
+    drawYavuz(true);
     for (const o of near) drawObj(o);
     drawParticles(dt);
     if (mode) {
