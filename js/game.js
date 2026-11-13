@@ -2983,7 +2983,12 @@ function loop(now) {
 requestAnimationFrame(loop);
 
 /* ---------- input ---------- */
+function typingInField(e) {
+  const el = e.target;
+  return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+}
 addEventListener('keydown', e => {
+  if (typingInField(e)) return;
   if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') { move(-1); e.preventDefault(); }
   else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { move(1); e.preventDefault(); }
   else if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === ' ') { jump(); e.preventDefault(); }
@@ -3044,6 +3049,7 @@ function skipBeat() {
 }
 cv.addEventListener('pointerdown', skipBeat);
 addEventListener('keydown', e => {
+  if (typingInField(e)) return;
   if (st === 'beat' && (e.key === ' ' || e.key === 'Enter' || e.key === 'Escape')) {
     skipBeat();
     e.preventDefault();
