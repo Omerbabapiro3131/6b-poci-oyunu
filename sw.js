@@ -18,7 +18,8 @@ const CORE = [
   './assets/img/yavuz.png',
   './assets/img/merve.png',
   './assets/img/kid67.png',
-  './assets/img/jumpscare.jpg'
+  './assets/img/jumpscare.jpg',
+  './assets/img/fnaf-1-map-reference.jpg'
 ];
 
 function put(req, res) {
