@@ -8,7 +8,8 @@ const SFX = (() => {
     dikidis: 'assets/audio/dikidis.mp3',
     yavuz: 'assets/audio/yavuz.mp3',
     music1: 'assets/audio/music1.mp3',
-    music2: 'assets/audio/music2.mp3'
+    music2: 'assets/audio/music2.mp3',
+    jumpscare: 'assets/audio/jumpscare.mp3',
   };
   let enabled = true;
   let ac = null;
