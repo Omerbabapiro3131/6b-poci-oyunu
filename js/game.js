@@ -85,6 +85,7 @@ const prof = Object.assign({ wallet: 0, owned: {}, ch: 'kosan', trail: '', aura:
 const stats = Object.assign({ run: 0, coin: 0, clear: 0, slide: 0, yavuz: 0, boss: 0, bossClean: 0, kid: 0, bestDist: 0 }, store.get('stats', {}));
 const ach = store.get('ach', {});
 let dm = store.get('dm', null);
+const COMBO_WINDOW = 1.1;
 let shield = 0, slideT = 0, comboN = 0, lastCoinT = -9, ev = null, evNext = 30;
 let kid = null, kidLift = 0, infaz = null, scare = null, adminOn = false, infazSnd = null, infazOn = false;
 const infazKeys = new Set();
@@ -165,8 +166,18 @@ function updateBest() { $('best').textContent = 'REKOR: ' + scoreBest + ' m · 6
 
 function flashMessage(txt) {
   const el = $('flashMsg');
+  el.classList.remove('combo');
   el.textContent = txt;
   el.classList.remove('on');
+  void el.offsetWidth;
+  el.classList.add('on');
+}
+
+function flashComboMessage(txt) {
+  const el = $('flashMsg');
+  el.textContent = txt;
+  el.classList.remove('on');
+  el.classList.add('combo');
   void el.offsetWidth;
   el.classList.add('on');
 }
@@ -430,11 +441,11 @@ function collect(o) {
     coins++;
   }
   bump('coin');
-  comboN = (t - lastCoinT < 0.9) ? comboN + 1 : 1;
+  comboN = (t - lastCoinT < COMBO_WINDOW) ? comboN + 1 : 1;
   lastCoinT = t;
   if (comboN % 8 === 0) {
     if (mode) modeStars++; else coins++;
-    flashMessage('KOMBO +1');
+    flashComboMessage('KOMBO +1');
   }
   notifyCoin();
   const p = proj(Math.max(o.d, 0));
@@ -580,6 +591,7 @@ function jump() {
 }
 
 function updatePlay(dt) {
+  if (comboN > 0 && t - lastCoinT >= COMBO_WINDOW) comboN = 0;
   if (boss) { updateBoss(dt); return; }
   const sp = speed * (pw === 'turbo' ? 1.7 : 1) * (ev ? ev.mul : 1);
   dist += sp * dt * (mode ? 2 : 1);
