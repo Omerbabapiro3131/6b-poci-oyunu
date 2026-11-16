@@ -88,7 +88,7 @@ let dm = store.get('dm', null);
 let shield = 0, slideT = 0, comboN = 0, lastCoinT = -9, ev = null, evNext = 30;
 let kid = null, kidLift = 0, infaz = null, scare = null, adminOn = false, infazSnd = null, infazOn = false;
 const infazKeys = new Set();
-const KID_CHANCE = 0.001, INFAZ_TIME = 30;
+const KID_CHANCE = 0.00002, INFAZ_TIME = 30;
 SFX.setEnabled(soundOn);
 let scoreBest = (store.get('scores', [])[0] || {}).d || 0;
 
@@ -1640,18 +1640,7 @@ function bossHurt(o) {
   const p = proj(0);
   spawnBurst(laneX(px, p), p.y - 160, 14, ['#ff4d4d', '#ffffff', '#ffd23f'], 620, 1300);
   if (boss.lives <= 0) {
-    // Boss yenilgisi oyunu bitirmez: 50 metre sonra 67 Kid karşılaşması başlar.
-    boss = null;
-    objs = [];
-    bossNext = (Math.floor(dist / BOSS_EVERY) + 1) * BOSS_EVERY;
-    spawnAt = 66;
-    objs.push({ ty: 'kid', lane: 0, d: 50 });
-    inv = 2.2;
-    flash = 0.8;
-    shake = 1.2;
-    SFX.effect('bossRage');
-    flashMessage('BOSS KAZANDI! 50 METRE SONRA 67 KID!');
-    updateHud();
+    hit(o);
     return;
   }
   inv = 1.6;
@@ -3859,7 +3848,7 @@ function updateScare(dt) {
   s.t += dt;
   if (!s.fired && s.t >= 0.75) {
     s.fired = true;
-    SFX.effect('scare');
+    SFX.play('infazScare', { volume: 1.0 });
     buzz([250, 80, 250, 80, 500]);
   }
   if (s.fired && s.t < 2.45) shake = Math.max(shake, 0.7);

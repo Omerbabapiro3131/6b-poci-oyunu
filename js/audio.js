@@ -6,10 +6,10 @@ const SFX = (() => {
     jole: 'assets/audio/jole_music.mp3',
     alo: 'assets/audio/alo_arif.mp3',
     dikidis: 'assets/audio/dikidis.mp3',
+    infazScare: 'assets/audio/infaz-jumpscare.mp3',
     yavuz: 'assets/audio/yavuz.mp3',
     music1: 'assets/audio/music1.mp3',
-    music2: 'assets/audio/music2.mp3',
-    jumpscare: 'assets/audio/jumpscare.mp3',
+    music2: 'assets/audio/music2.mp3'
   };
   let enabled = true;
   let ac = null;
