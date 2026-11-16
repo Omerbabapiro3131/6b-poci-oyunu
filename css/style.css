@@ -93,6 +93,7 @@ body.mode-board #hud.on ~ #touch{display:flex}
 
 #flashMsg{position:absolute;left:50%;top:31%;transform:translate(-50%,-50%) scale(.5);opacity:0;font-size:3.6cqh;color:#141d3a;background:linear-gradient(#ffe25a,#ffb400);border:.4cqh solid #141d3a;border-radius:99px;padding:.8cqh 4cqw;white-space:nowrap;pointer-events:none;box-shadow:0 .6cqh 0 rgba(0,0,0,.35)}
 #flashMsg.on{animation:pop 1.5s cubic-bezier(.3,1.6,.5,1) forwards}
+#flashMsg.combo{font-size:2.05cqh;padding:.42cqh 2.1cqw;border-width:.25cqh;letter-spacing:.02em;max-width:42cqw;box-sizing:border-box}
 @keyframes pop{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}12%{opacity:1;transform:translate(-50%,-50%) scale(1.06)}22%{transform:translate(-50%,-50%) scale(.97)}80%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-70%) scale(.9)}}
 
 #offer{position:absolute;left:50%;top:29%;transform:translateX(-50%) scale(.6);opacity:0;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:1.3cqh;transition:transform .25s cubic-bezier(.3,1.6,.5,1),opacity .2s;width:100%}
