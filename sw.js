@@ -1,4 +1,4 @@
-const CACHE = 'sixb-run-v21';
+const CACHE = 'sixb-run-v22';
 
 const CORE = [
   './index.html',
@@ -7,6 +7,7 @@ const CORE = [
   './js/config.js',
   './js/audio.js',
   './js/game.js',
+  './assets/audio/infaz-jumpscare.mp3',
   './assets/img/duran.png',
   './assets/img/kosan.png',
   './assets/img/poci.png',
