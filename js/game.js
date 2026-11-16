@@ -65,7 +65,7 @@ const store = {
 let soundOn = store.get('sound', true);
 let testMode = store.get('test', false);
 const CHARS = [
-  { id: 'kosan', name: '6/B ÖĞRENCİSİ', desc: 'KLASİK KOŞUCU · YETENEK YOK', cost: 0, spr: 'kosan', col: '#3b6bff' },
+  { id: 'kosan', name: 'METİN OKTAY', desc: 'KLASİK KOŞUCU · YETENEK YOK', cost: 0, spr: 'kosan', col: '#3b6bff' },
   { id: 'yavuz', name: 'YAVUZ', desc: 'ZIPLAMASI %25 DAHA YÜKSEK', cost: 150, spr: 'yavuz', col: '#c0162f' },
   { id: 'merve', name: 'MERVE MİNA', desc: 'HER KOŞUDA İLK ÇARPMAYI AFFEDER', cost: 250, spr: 'merve', col: '#d81b3c' }
 ];
@@ -465,7 +465,7 @@ function hit(o) {
 
 function offerShow() {
   if (st !== 'hit') return;
-  const cost = contN ? 30 : 15;
+  const cost = contN === 0 ? 250 : 500;
   const have = coins + modeStarsTotal;
   if (contN >= 2 || have < cost) {
     finishOver();
@@ -1640,7 +1640,18 @@ function bossHurt(o) {
   const p = proj(0);
   spawnBurst(laneX(px, p), p.y - 160, 14, ['#ff4d4d', '#ffffff', '#ffd23f'], 620, 1300);
   if (boss.lives <= 0) {
-    hit(o);
+    // Boss yenilgisi oyunu bitirmez: 50 metre sonra 67 Kid karşılaşması başlar.
+    boss = null;
+    objs = [];
+    bossNext = (Math.floor(dist / BOSS_EVERY) + 1) * BOSS_EVERY;
+    spawnAt = 66;
+    objs.push({ ty: 'kid', lane: 0, d: 50 });
+    inv = 2.2;
+    flash = 0.8;
+    shake = 1.2;
+    SFX.effect('bossRage');
+    flashMessage('BOSS KAZANDI! 50 METRE SONRA 67 KID!');
+    updateHud();
     return;
   }
   inv = 1.6;
@@ -3188,12 +3199,18 @@ const sBtn = (id, label, dim) =>
 const walletP = () => '<p>6/B CÜZDANIN: <b style="color:#ffd23f">' + prof.wallet + '</b></p>';
 
 function openChars() {
-  let h = '<h2>KARAKTER</h2>' + walletP();
+  let h = '<h2>KARAKTER SEÇİMİ</h2>' + walletP() +
+    '<div class="char-grid">';
   for (const c of CHARS) {
     const have = owned(c.id), sel = prof.ch === c.id;
-    h += rowH(c.name, c.desc, sBtn('ch_' + c.id, sel ? 'SEÇİLİ' : have ? 'SEÇ' : '★ ' + c.cost, !have && prof.wallet < c.cost));
+    const avatar = c.spr === 'kosan' ? 'kosan.png' : c.spr === 'yavuz' ? 'yavuz.png' : 'merve.png';
+    h += '<div class="char-card' + (sel ? ' selected' : '') + '">' +
+      '<div class="char-art"><img src="assets/img/' + avatar + '" alt="' + c.name + '"></div>' +
+      '<div class="char-info"><b>' + c.name + '</b><small>' + c.desc + '</small></div>' +
+      '<button class="b b2 char-action" id="ch_' + c.id + '">' +
+      (sel ? 'SEÇİLİ' : have ? 'SEÇ' : '★ ' + c.cost) + '</button></div>';
   }
-  h += '<button class="b b2" id="chBack">KAPAT</button>';
+  h += '</div><button class="b b2" id="chBack">KAPAT</button>';
   openModal(h);
   for (const c of CHARS) {
     $('ch_' + c.id).onclick = () => {
