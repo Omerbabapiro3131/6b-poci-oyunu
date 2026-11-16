@@ -6,7 +6,9 @@ const SFX = (() => {
     jole: 'assets/audio/jole_music.mp3',
     alo: 'assets/audio/alo_arif.mp3',
     dikidis: 'assets/audio/dikidis.mp3',
-    yavuz: 'assets/audio/yavuz.mp3'
+    yavuz: 'assets/audio/yavuz.mp3',
+    music1: 'assets/audio/music1.mp3',
+    music2: 'assets/audio/music2.mp3'
   };
   let enabled = true;
   let ac = null;
@@ -230,6 +232,31 @@ const SFX = (() => {
         break;
       case 'bossWin':
         [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, f, 0.16, 'square', 0.09, i * 0.13));
+        break;
+      case 'slide': noiseBurst(0.18, 0.15, 1800); break;
+      case 'zil':
+        for (let i = 0; i < 4; i++) { tone(1568, 1568, 0.3, 'sine', 0.14, i * 0.22); tone(2093, 2093, 0.3, 'sine', 0.1, i * 0.22); }
+        break;
+      case 'kidNear':
+        tone(46, 38, 1.8, 'sawtooth', 0.16);
+        noiseBurst(1.2, 0.1, 500);
+        break;
+      case 'kidStatic':
+        noiseBurst(2.4, 0.22, 3000);
+        tone(52, 40, 2.4, 'sawtooth', 0.2);
+        tone(880, 860, 2.2, 'sine', 0.025);
+        break;
+      case 'kidGrab':
+        noiseBurst(0.5, 0.5, 1200);
+        tone(120, 30, 0.8, 'sawtooth', 0.35);
+        tone(900, 200, 0.6, 'square', 0.12);
+        break;
+      case 'scare':
+        noiseBurst(1.7, 0.95, 6500);
+        tone(880, 1760, 1.0, 'sawtooth', 0.5);
+        tone(1320, 400, 1.2, 'square', 0.4);
+        tone(1760, 1100, 1.5, 'sawtooth', 0.35);
+        tone(60, 30, 1.8, 'sawtooth', 0.5);
         break;
       case 'ui': tone(660, 880, 0.08, 'square', 0.06); break;
       default: break;
