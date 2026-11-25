@@ -4,6 +4,7 @@
 const W = 941, H = 1672, HOR = 385, VP = 470, K = 5;
 const MODE_TIME = 10, OFFER_TIME = 4;
 const YAV_TIME = 30, YAV_CHANCE = 0.025;
+const EMIR_PRAYER_TIME = 10, EMIR_BOOST_TIME = 6;
 const JUMP_H = 260, JUMP_LEN = 0.72, YAV_JUMP_H = 640, YAV_JUMP_LEN = 0.98;
 const BOSS_EVERY = 6000, BOSS_HP = 5, BOSS_LIVES = 3, BOSS_REWARD = 30;
 const BOSS_FEET = 860, BOSS_H = 560;
@@ -41,6 +42,7 @@ const IMG_SRC = {
   sinif: 'assets/img/sinif.jpg',
   seyit: 'assets/img/seyit.png',
   yavuz: 'assets/img/yavuz.png',
+  emir: 'assets/img/emir.png',
   merve: 'assets/img/merve.png',
   kid67: 'assets/img/kid67.png',
   scare: 'assets/img/jumpscare.jpg'
@@ -134,6 +136,7 @@ const TYPES = {
   exam: { h: 220, pw: 'exam', avatar: 'exam' },
   fly: { h: 200, pw: 'fly', avatar: 'poci' },
   yavuz: { h: 330, pw: 'yavuz', avatar: 'yavuz' },
+  emir: { h: 360, pw: 'emir', avatar: 'emir' },
   borb: { h: 130, pw: 'borb' },
   asma: { h: 120, hang: true },
   kid: { h: 300, pw: 'kid' }
@@ -151,6 +154,7 @@ let chase = null, offer = null, contN = 0, bestPrev = 0, recDone = false;
 let flash = 0, shake = 0, hitBy = null, caughtT = 0, overT = 0;
 let modeMusic = null, pwLoop = null, deathSnd = null, lastCoinSfx = 0;
 let yav = null, yavSnd = null, jumpHt = JUMP_H, jumpLen = JUMP_LEN;
+let emirPrayerT = 0, emirBoostT = 0, emirShoutT = 0;
 let boss = null, bossNext = BOSS_EVERY;
 
 /* ---------- UI ---------- */
@@ -199,7 +203,7 @@ function notifyCoin() {
 function resetRun() {
   objs = []; particles = [];
   lane = 0; px = 0; jumpT = -1; speed = 15.5; dist = 0; coins = 0; spawnAt = 18;
-  stopYav(); jumpHt = JUMP_H; jumpLen = JUMP_LEN;
+  stopYav(); emirPrayerT = 0; emirBoostT = 0; emirShoutT = 0; jumpHt = JUMP_H; jumpLen = JUMP_LEN;
   boss = null; bossNext = BOSS_EVERY;
   shield = prof.ch === 'merve' ? 1 : 0; slideT = 0; comboN = 0; lastCoinT = -9; ev = null; evNext = 30;
   kid = null; kidLift = 0; infaz = null; scare = null; stopInfazMusic();
@@ -305,8 +309,12 @@ function spawnRow(d) {
     objs.push({ ty, lane: lanes[i], d });
   }
   const free = lanes[nObs];
-  if (!mode && !yav && run > 120 && Math.random() < YAV_CHANCE && !objs.some(o => o.ty === 'yavuz' && !o.dead)) {
+  const rareReady = !mode && !yav && run > 120 && !objs.some(o => (o.ty === 'yavuz' || o.ty === 'emir') && !o.dead);
+  const rareRoll = Math.random();
+  if (rareReady && rareRoll < YAV_CHANCE) {
     objs.push({ ty: 'yavuz', lane: free, d: d + 1 });
+  } else if (rareReady && rareRoll < YAV_CHANCE * 2) {
+    objs.push({ ty: 'emir', lane: free, d: d + 1 });
   } else if (!mode && Math.random() < 0.1) {
     objs.push({ ty: rnd(['turbo', 'exam', 'fly']), lane: free, d: d + 1 });
   } else {
@@ -373,6 +381,25 @@ function updateYav(dt, hold) {
   }
 }
 
+function pickEmir() {
+  SFX.effect('pickup');
+  flash = Math.max(flash, 0.35);
+  if (Math.random() < 0.5) {
+    emirPrayerT = EMIR_PRAYER_TIME;
+    emirBoostT = 0;
+    emirShoutT = 0;
+    flashMessage('EMİR 10 SANİYELİK NAMAZ MOLASI VERDİ!');
+  } else {
+    emirBoostT = EMIR_BOOST_TIME;
+    emirPrayerT = 0;
+    emirShoutT = 2.2;
+    inv = Math.max(inv, EMIR_BOOST_TIME);
+    flashMessage('İMAN GÜCÜÜÜÜÜÜÜ!');
+    SFX.effect('whoosh');
+  }
+  updateHud();
+}
+
 function pick(o) {
   o.dead = 1;
   if (o.ty === 'kid') {
@@ -382,6 +409,10 @@ function pick(o) {
   }
   if (o.ty === 'yavuz') {
     pickYavuz();
+    return;
+  }
+  if (o.ty === 'emir') {
+    pickEmir();
     return;
   }
   if (o.ty === 'turbo') {
@@ -562,7 +593,7 @@ function recordLocalRun(d, c) {
 
 /* ---------- update ---------- */
 function move(dx) {
-  if (st !== 'play') return;
+  if (st !== 'play' || emirPrayerT > 0) return;
   const nl = clamp(lane + dx, -1, 1);
   if (nl !== lane) {
     lane = nl;
@@ -571,7 +602,7 @@ function move(dx) {
   }
 }
 function jump() {
-  if (st !== 'play') return;
+  if (st !== 'play' || emirPrayerT > 0) return;
   if (pw === 'fly') return;
   if (jumpT >= 0) return;
   jumpT = 0;
@@ -591,9 +622,17 @@ function jump() {
 }
 
 function updatePlay(dt) {
+  if (emirPrayerT > 0) {
+    emirPrayerT = Math.max(0, emirPrayerT - dt);
+    if (emirPrayerT === 0) flashMessage('NAMAZ MOLASI BİTTİ!');
+    updateHud();
+    return;
+  }
+  if (emirBoostT > 0) emirBoostT = Math.max(0, emirBoostT - dt);
+  if (emirShoutT > 0) emirShoutT = Math.max(0, emirShoutT - dt);
   if (comboN > 0 && t - lastCoinT >= COMBO_WINDOW) comboN = 0;
   if (boss) { updateBoss(dt); return; }
-  const sp = speed * (pw === 'turbo' ? 1.7 : 1) * (ev ? ev.mul : 1);
+  const sp = speed * (pw === 'turbo' ? 1.7 : 1) * (emirBoostT > 0 ? 2.35 : 1) * (ev ? ev.mul : 1);
   dist += sp * dt * (mode ? 2 : 1);
   run += sp * dt;
   speed = 15.5 + 15.5 * (1 - Math.exp(-run / 1500));
@@ -617,7 +656,7 @@ function updatePlay(dt) {
 
   for (const o of objs) o.d -= sp * dt;
   for (const o of objs) {
-    if (o.ty === 'kid' && !o.dead && o.d < 5) { startKid(o); return; }
+    if (o.ty === 'kid' && !o.dead && o.d < 5 && emirBoostT <= 0) { startKid(o); return; }
   }
 
   if (dashLeft > 0) dashStep(dt);
@@ -688,7 +727,15 @@ function collide(dt) {
     if (o.dead || o.lane !== cl || o.d > 0.6 || o.d < -0.2) continue;
     const T = TYPES[o.ty];
     if (T.coin) { collect(o); continue; }
+    if (emirBoostT > 0 && o.ty === 'kid') { o.dead = 1; continue; }
     if (T.pw) { pick(o); continue; }
+    if (emirBoostT > 0) {
+      o.dead = 1;
+      const ep = proj(Math.max(o.d, 0));
+      spawnBurst(laneX(o.lane, ep), ep.y - 80 * ep.sc, 8, ['#ffd23f', '#fff6c0', '#ffffff'], 500, 900);
+      SFX.effect('smash');
+      continue;
+    }
     if (T.seyit) {
       if (mode || pw) {
         o.dead = 1;
@@ -738,10 +785,12 @@ function updateHud() {
   $('coinLabel').textContent = mode ? 'SENTA' : '6/B';
   const pe = $('pw');
   const yavOn = !!yav && yav.leave < 0;
-  if (pw || yavOn) {
+  if (pw || yavOn || emirBoostT > 0 || emirPrayerT > 0) {
     const parts = [];
     if (pw) parts.push((pw === 'turbo' ? 'DERS BOŞ ' : pw === 'exam' ? 'KONUŞMA SINAVI ' : 'POÇİ KAÇIŞI ') + Math.ceil(pwT) + 's');
     if (yavOn) parts.push('YAVUZ ' + Math.ceil(yav.t) + 's');
+    if (emirPrayerT > 0) parts.push('NAMAZ MOLASI ' + Math.ceil(emirPrayerT) + 's');
+    if (emirBoostT > 0) parts.push('İMAN GÜCÜ ' + Math.ceil(emirBoostT) + 's');
     pe.hidden = false;
     pe.style.display = 'flex';
     pe.textContent = parts.join(' · ');
@@ -1221,6 +1270,29 @@ function drawObj(o) {
     g.beginPath();
     g.arc(x, y, r * 1.45, t * 4, t * 4 + 4.2);
     g.stroke();
+    g.restore();
+    return;
+  }
+  if (o.ty === 'emir') {
+    const hh = T.h * p.sc;
+    const hop = Math.abs(Math.sin(t * 5 + o.d)) * 12 * p.sc;
+    shadow(x, p.y, hh * 0.62);
+    g.save();
+    g.shadowColor = '#7dffb2';
+    g.shadowBlur = 18 + 30 * p.sc;
+    drawSprite('emir', x, p.y - hop, hh, far);
+    g.restore();
+    const fs = Math.max(10, 42 * p.sc);
+    g.save();
+    g.globalAlpha = far;
+    g.font = '900 ' + fs + 'px "Arial Black",system-ui,sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.lineWidth = Math.max(2, fs * 0.16);
+    g.strokeStyle = '#10251b';
+    g.fillStyle = '#7dffb2';
+    g.strokeText('EMİR', x, p.y - hh - fs * 0.7 - hop);
+    g.fillText('EMİR', x, p.y - hh - fs * 0.7 - hop);
     g.restore();
     return;
   }
@@ -3036,6 +3108,43 @@ function drawMenu() {
   drawSprite('duran', W * 0.5, 1205 + bob, 580, 1, Math.sin(t * 1.4) * 0.015);
 }
 
+function drawEmirEffect() {
+  if (emirPrayerT > 0) {
+    g.save();
+    g.fillStyle = 'rgba(3, 8, 14, .88)';
+    g.fillRect(0, 0, W, H);
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.font = '900 58px "Arial Black",system-ui,sans-serif';
+    g.lineWidth = 8;
+    g.strokeStyle = '#10251b';
+    g.fillStyle = '#7dffb2';
+    g.strokeText('NAMAZ MOLASI', W / 2, 280);
+    g.fillText('NAMAZ MOLASI', W / 2, 280);
+    drawSprite('emir', W / 2, 1260, 650, 1);
+    g.font = '900 78px "Arial Black",system-ui,sans-serif';
+    g.fillStyle = '#ffffff';
+    g.fillText(Math.ceil(emirPrayerT) + ' SANİYE', W / 2, 1390);
+    g.font = '700 30px system-ui,sans-serif';
+    g.fillStyle = '#c5d3df';
+    g.fillText('EMİR OYUNA MOLA VERDİRDİ', W / 2, 1480);
+    g.restore();
+  } else if (emirShoutT > 0) {
+    g.save();
+    const a = Math.min(1, emirShoutT * 1.8);
+    g.globalAlpha = a;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.font = '900 68px "Arial Black",system-ui,sans-serif';
+    g.lineWidth = 10;
+    g.strokeStyle = '#14220f';
+    g.fillStyle = '#baff72';
+    g.strokeText('İMAN GÜCÜÜÜÜÜÜÜ!', W / 2, 250);
+    g.fillText('İMAN GÜCÜÜÜÜÜÜÜ!', W / 2, 250);
+    g.restore();
+  }
+}
+
 /* ---------- render ---------- */
 function render(dt) {
   g.clearRect(0, 0, W, H);
@@ -3080,6 +3189,7 @@ function render(dt) {
     }
     if (st === 'kid') drawKidFx(dt);
   }
+  drawEmirEffect();
   g.restore();
   if (flash > 0) {
     g.fillStyle = 'rgba(255,255,255,' + (flash * 0.7) + ')';
