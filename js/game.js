@@ -628,7 +628,13 @@ function updatePlay(dt) {
     updateHud();
     return;
   }
-  if (emirBoostT > 0) emirBoostT = Math.max(0, emirBoostT - dt);
+  if (emirBoostT > 0) {
+  emirBoostT = Math.max(0, emirBoostT - dt);
+
+  if (emirBoostT === 0) {
+    clearNear(30, false);
+  }
+}
   if (emirShoutT > 0) emirShoutT = Math.max(0, emirShoutT - dt);
   if (comboN > 0 && t - lastCoinT >= COMBO_WINDOW) comboN = 0;
   if (boss) { updateBoss(dt); return; }
