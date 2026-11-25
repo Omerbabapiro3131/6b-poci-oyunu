@@ -5,6 +5,8 @@ const W = 941, H = 1672, HOR = 385, VP = 470, K = 5;
 const MODE_TIME = 10, OFFER_TIME = 4;
 const YAV_TIME = 30, YAV_CHANCE = 0.025;
 const EMIR_PRAYER_TIME = 10, EMIR_BOOST_TIME = 6;
+const REV_TIME = 10, REV_SLOW = 0.6;            // Mustafa Eymen: ters kontrol süresi, yavaşlama çarpanı
+const NIYAZI_PUSH = 1000, BUMP_TIME = 1.8;      // Niyazi: geri itme (m) ve animasyon süresi
 const JUMP_H = 260, JUMP_LEN = 0.72, YAV_JUMP_H = 640, YAV_JUMP_LEN = 0.98;
 const BOSS_EVERY = 6000, BOSS_HP = 5, BOSS_LIVES = 3, BOSS_REWARD = 30;
 const BOSS_FEET = 860, BOSS_H = 560;
@@ -43,6 +45,9 @@ const IMG_SRC = {
   seyit: 'assets/img/seyit.png',
   yavuz: 'assets/img/yavuz.png',
   emir: 'assets/img/emir.png',
+  niyazi: 'assets/img/niyazi.png',
+  mustafa: 'assets/img/mustafa_eymen.png',
+  ahmet: 'assets/img/ahmet_deniz.png',
   merve: 'assets/img/merve.png',
   kid67: 'assets/img/kid67.png',
   scare: 'assets/img/jumpscare.jpg'
@@ -137,6 +142,9 @@ const TYPES = {
   fly: { h: 200, pw: 'fly', avatar: 'poci' },
   yavuz: { h: 330, pw: 'yavuz', avatar: 'yavuz' },
   emir: { h: 360, pw: 'emir', avatar: 'emir' },
+  niyazi: { h: 340, pw: 'niyazi', avatar: 'niyazi' },
+  mustafa: { h: 340, pw: 'mustafa', avatar: 'mustafa' },
+  teneke: { h: 170, low: true, prop: 'teneke' },
   borb: { h: 130, pw: 'borb' },
   asma: { h: 120, hang: true },
   kid: { h: 300, pw: 'kid' }
@@ -155,6 +163,9 @@ let flash = 0, shake = 0, hitBy = null, caughtT = 0, overT = 0;
 let modeMusic = null, pwLoop = null, deathSnd = null, lastCoinSfx = 0;
 let yav = null, yavSnd = null, jumpHt = JUMP_H, jumpLen = JUMP_LEN;
 let emirPrayerT = 0, emirBoostT = 0, emirShoutT = 0;
+let revT = 0;                                              // ters kontrol sayacı (Mustafa Eymen)
+let bumpT = 0, bumpTotal = 0, bumpLeft = 0, bumpRate = 0, bumpHit = false;   // Niyazi göbek atma
+let houses = [], houseAt = 0, ahmetPending = false;        // yol kenarı evler + Ahmet Deniz
 let boss = null, bossNext = BOSS_EVERY;
 
 /* ---------- UI ---------- */
@@ -204,6 +215,7 @@ function resetRun() {
   objs = []; particles = [];
   lane = 0; px = 0; jumpT = -1; speed = 15.5; dist = 0; coins = 0; spawnAt = 18;
   stopYav(); emirPrayerT = 0; emirBoostT = 0; emirShoutT = 0; jumpHt = JUMP_H; jumpLen = JUMP_LEN;
+  revT = 0; bumpT = 0; bumpLeft = 0; bumpHit = false; ahmetPending = false; houseAt = 6; seedHouses();
   boss = null; bossNext = BOSS_EVERY;
   shield = prof.ch === 'merve' ? 1 : 0; slideT = 0; comboN = 0; lastCoinT = -9; ev = null; evNext = 30;
   kid = null; kidLift = 0; infaz = null; scare = null; stopInfazMusic();
@@ -247,6 +259,7 @@ function goMenu() {
   stopYav();
   boss = null;
   kid = null; kidLift = 0; infaz = null; scare = null; slideT = 0; stopInfazMusic(); refreshBadges();
+  revT = 0; bumpT = 0; houses = [];
   st = 'menu';
   caughtT = 0; chase = null; hitBy = null; offer = null;
   beat = null; beatOver = false;
@@ -282,6 +295,7 @@ function togglePause() {
 
 /* ---------- spawn ---------- */
 function spawnRow(d) {
+  if (!mode && !boss && run > 120 && !ahmetPending && !houses.some(h => h.ahmet && !h.done) && Math.random() < YAV_CHANCE) ahmetPending = true;
   if (!mode && run >= seyitNext) {
     seyitNext = run + 120 + Math.random() * 120;
     objs.push({ ty: 'seyit', lane: rnd([-1, 0, 1]), d });
@@ -309,12 +323,16 @@ function spawnRow(d) {
     objs.push({ ty, lane: lanes[i], d });
   }
   const free = lanes[nObs];
-  const rareReady = !mode && !yav && run > 120 && !objs.some(o => (o.ty === 'yavuz' || o.ty === 'emir') && !o.dead);
+  const rareReady = !mode && !yav && run > 120 && revT <= 0 && bumpT <= 0 && !objs.some(o => (o.ty === 'yavuz' || o.ty === 'emir' || o.ty === 'niyazi' || o.ty === 'mustafa') && !o.dead);
   const rareRoll = Math.random();
   if (rareReady && rareRoll < YAV_CHANCE) {
     objs.push({ ty: 'yavuz', lane: free, d: d + 1 });
   } else if (rareReady && rareRoll < YAV_CHANCE * 2) {
     objs.push({ ty: 'emir', lane: free, d: d + 1 });
+  } else if (rareReady && rareRoll < YAV_CHANCE * 3) {
+    objs.push({ ty: 'niyazi', lane: free, d: d + 1 });
+  } else if (rareReady && rareRoll < YAV_CHANCE * 4) {
+    objs.push({ ty: 'mustafa', lane: free, d: d + 1 });
   } else if (!mode && Math.random() < 0.1) {
     objs.push({ ty: rnd(['turbo', 'exam', 'fly']), lane: free, d: d + 1 });
   } else {
@@ -400,6 +418,116 @@ function pickEmir() {
   updateHud();
 }
 
+/* ---------- Niyazi · Mustafa Eymen · Ahmet Deniz ---------- */
+function pickNiyazi() {
+  bumpTotal = Math.min(NIYAZI_PUSH, Math.floor(dist));
+  bumpLeft = bumpTotal;
+  bumpRate = bumpTotal / (BUMP_TIME * 0.75);
+  bumpT = BUMP_TIME;
+  bumpHit = false;
+  inv = Math.max(inv, BUMP_TIME + 0.6);
+  clearNear(60);
+  SFX.effect('pickup');
+  flashMessage('NİYAZİ GÖBEK ATTI!' + (bumpTotal > 0 ? ' -' + bumpTotal + ' M' : ''));
+  updateHud();
+}
+function updateBump(dt) {
+  bumpT = Math.max(0, bumpT - dt);
+  const u = 1 - bumpT / BUMP_TIME;
+  if (!bumpHit && u >= 0.25) {
+    bumpHit = true;
+    shake = 1;
+    flash = Math.max(flash, 0.5);
+    SFX.effect('smash');
+    const p = proj(0);
+    spawnBurst(laneX(px, p) + 50, p.y - 200 * p.sc, 18, ['#ff8a3d', '#ffd23f', '#ffffff'], 760, 1100);
+  }
+  if (u >= 0.25 && bumpLeft > 0) {
+    const take = Math.min(bumpLeft, bumpRate * dt);
+    bumpLeft -= take;
+    dist = Math.max(0, dist - take);
+    scroll -= take;
+    if (scroll < 0) scroll += 2400;
+    for (const hs of houses) hs.d += take * 0.5;
+  }
+  px += (lane - px) * Math.min(1, dt * 14);
+  tilt *= Math.pow(0.02, dt);
+  if (jumpT >= 0) {
+    jumpT += dt / jumpLen;
+    if (jumpT >= 1) jumpT = -1;
+  }
+  if (inv > 0) inv -= dt;
+  if (slideT > 0) slideT -= dt;
+  if (yav) updateYav(dt, true);
+  if (bumpT === 0) {
+    seedHouses();
+    spawnAt = 40;
+    flashMessage('GERİ İTİLDİN! DEVAM ET!');
+  }
+  updateHud();
+}
+function pickMustafa() {
+  revT = REV_TIME;
+  flash = Math.max(flash, 0.35);
+  SFX.effect('pickup');
+  flashMessage('KONTROLLER TERS!');
+  updateHud();
+}
+
+const HOUSE_COLS = [
+  { wall: '#d8c39a', roof: '#a8412f', trim: '#8a7550' },
+  { wall: '#c98f74', roof: '#6d3b2b', trim: '#8f5a43' },
+  { wall: '#9db8cc', roof: '#3f5a73', trim: '#6b8499' },
+  { wall: '#b7c98f', roof: '#7a3a2e', trim: '#859a5f' },
+  { wall: '#dcaab4', roof: '#6a3a4a', trim: '#a97885' }
+];
+function addHousePair(d, ahmetSide) {
+  for (const side of [-1, 1]) {
+    houses.push({
+      side, d,
+      wm: ahmetSide === side ? 1.3 : 0.9 + Math.random() * 0.25, hm: ahmetSide === side ? 1.3 : 0.9 + Math.random() * 0.3,
+      ci: Math.floor(Math.random() * HOUSE_COLS.length), seed: Math.random(),
+      ahmet: ahmetSide === side, t: 0, hello: false, thrown: false, done: false
+    });
+  }
+}
+function seedHouses() {
+  houses = [];
+  for (let d = 6; d < 48; d += 9) addHousePair(d + Math.random() * 3, 0);
+}
+function throwFromBalcony(hs) {
+  const free = [-1, 0, 1].filter(L => !objs.some(o => !o.dead && o.lane === L && Math.abs(o.d - (hs.d - 12)) < 5));
+  const lane = rnd(free.length ? free : [-1, 0, 1]);
+  const ty = Math.random() < 0.7 ? rnd(['kitap', 'teneke', 'sise']) : 'emir';   // %70 çöp, %30 Emir
+  objs.push({ ty, lane, d: hs.d, d0: hs.d, air: 1, aird: 12, side: hs.side, spin: Math.random() * 6.28, lift0: 390 * hs.hm });
+  SFX.effect('whoosh');
+}
+function landThrown(o) {
+  const p = proj(Math.max(o.d, 0));
+  spawnBurst(laneX(o.lane, p), p.y - 10, 7, o.ty === 'emir' ? ['#7dffb2', '#ffffff'] : ['#9aa3b5', '#c9ced8', '#ffffff'], 320, 800);
+}
+function updateHouses(dt, sp) {
+  houseAt -= sp * dt;
+  if (houseAt <= 0) {
+    if (ahmetPending) {
+      addHousePair(40 + sp * 0.8, rnd([-1, 1]));
+      ahmetPending = false;
+    } else {
+      addHousePair(46 + Math.random() * 2, 0);
+    }
+    houseAt = 8.5 + Math.random() * 3;
+  }
+  for (const hs of houses) {
+    hs.d -= sp * dt;
+    if (!hs.ahmet || hs.done) continue;
+    hs.t += dt;
+    if (!hs.hello && hs.t > 0.45) { hs.hello = true; flashMessage('AHMET DENİZ BALKONDA!'); }
+    if (!hs.thrown && hs.t > 0.8) { hs.thrown = true; throwFromBalcony(hs); }
+    if (hs.t > 2.5) hs.done = true;
+  }
+  houses = houses.filter(h => h.d > -1.6);
+}
+
 function pick(o) {
   o.dead = 1;
   if (o.ty === 'kid') {
@@ -413,6 +541,14 @@ function pick(o) {
   }
   if (o.ty === 'emir') {
     pickEmir();
+    return;
+  }
+  if (o.ty === 'niyazi') {
+    pickNiyazi();
+    return;
+  }
+  if (o.ty === 'mustafa') {
+    pickMustafa();
     return;
   }
   if (o.ty === 'turbo') {
@@ -594,6 +730,7 @@ function recordLocalRun(d, c) {
 /* ---------- update ---------- */
 function move(dx) {
   if (st !== 'play' || emirPrayerT > 0) return;
+  if (revT > 0) dx = -dx;
   const nl = clamp(lane + dx, -1, 1);
   if (nl !== lane) {
     lane = nl;
@@ -601,7 +738,9 @@ function move(dx) {
     if (!mode && !pw) SFX.play('lane', { volume: 0.65 });
   }
 }
-function jump() {
+function jump() { if (revT > 0) slideReal(); else jumpReal(); }
+function slide() { if (revT > 0) jumpReal(); else slideReal(); }
+function jumpReal() {
   if (st !== 'play' || emirPrayerT > 0) return;
   if (pw === 'fly') return;
   if (jumpT >= 0) return;
@@ -628,17 +767,16 @@ function updatePlay(dt) {
     updateHud();
     return;
   }
-  if (emirBoostT > 0) {
-  emirBoostT = Math.max(0, emirBoostT - dt);
-
-  if (emirBoostT === 0) {
-    clearNear(30, false);
+  if (revT > 0) {
+    revT = Math.max(0, revT - dt);
+    if (revT === 0) flashMessage('KONTROLLER DÜZELDİ!');
   }
-}
+  if (bumpT > 0) { updateBump(dt); return; }
+  if (emirBoostT > 0) emirBoostT = Math.max(0, emirBoostT - dt);
   if (emirShoutT > 0) emirShoutT = Math.max(0, emirShoutT - dt);
   if (comboN > 0 && t - lastCoinT >= COMBO_WINDOW) comboN = 0;
   if (boss) { updateBoss(dt); return; }
-  const sp = speed * (pw === 'turbo' ? 1.7 : 1) * (emirBoostT > 0 ? 2.35 : 1) * (ev ? ev.mul : 1);
+  const sp = speed * (pw === 'turbo' ? 1.7 : 1) * (emirBoostT > 0 ? 2.35 : 1) * (ev ? ev.mul : 1) * (revT > 0 ? REV_SLOW : 1);
   dist += sp * dt * (mode ? 2 : 1);
   run += sp * dt;
   speed = 15.5 + 15.5 * (1 - Math.exp(-run / 1500));
@@ -661,6 +799,13 @@ function updatePlay(dt) {
   flyH += (flyTarget - flyH) * Math.min(1, dt * 7);
 
   for (const o of objs) o.d -= sp * dt;
+  for (const o of objs) {
+    if (o.air > 0) {
+      o.air = Math.max(0, 1 - (o.d0 - o.d) / o.aird);
+      if (o.air === 0) landThrown(o);
+    }
+  }
+  updateHouses(dt, sp);
   for (const o of objs) {
     if (o.ty === 'kid' && !o.dead && o.d < 5 && emirBoostT <= 0) { startKid(o); return; }
   }
@@ -730,7 +875,7 @@ function collide(dt) {
     }
   }
   for (const o of objs) {
-    if (o.dead || o.lane !== cl || o.d > 0.6 || o.d < -0.2) continue;
+    if (o.dead || o.air > 0 || o.lane !== cl || o.d > 0.6 || o.d < -0.2) continue;
     const T = TYPES[o.ty];
     if (T.coin) { collect(o); continue; }
     if (emirBoostT > 0 && o.ty === 'kid') { o.dead = 1; continue; }
@@ -791,12 +936,13 @@ function updateHud() {
   $('coinLabel').textContent = mode ? 'SENTA' : '6/B';
   const pe = $('pw');
   const yavOn = !!yav && yav.leave < 0;
-  if (pw || yavOn || emirBoostT > 0 || emirPrayerT > 0) {
+  if (pw || yavOn || emirBoostT > 0 || emirPrayerT > 0 || revT > 0) {
     const parts = [];
     if (pw) parts.push((pw === 'turbo' ? 'DERS BOŞ ' : pw === 'exam' ? 'KONUŞMA SINAVI ' : 'POÇİ KAÇIŞI ') + Math.ceil(pwT) + 's');
     if (yavOn) parts.push('YAVUZ ' + Math.ceil(yav.t) + 's');
     if (emirPrayerT > 0) parts.push('NAMAZ MOLASI ' + Math.ceil(emirPrayerT) + 's');
     if (emirBoostT > 0) parts.push('İMAN GÜCÜ ' + Math.ceil(emirBoostT) + 's');
+    if (revT > 0) parts.push('TERS KONTROL ' + Math.ceil(revT) + 's');
     pe.hidden = false;
     pe.style.display = 'flex';
     pe.textContent = parts.join(' · ');
@@ -971,7 +1117,23 @@ function drawProp(kind, x, feetY, h, alpha) {
   g.globalAlpha = alpha;
   g.translate(x, feetY);
 
-  if (kind === 'koni') {
+  if (kind === 'teneke') {
+    const bw = h * 0.62;
+    g.fillStyle = '#1d6fd1';
+    rr(-bw / 2, -h * 0.9, bw, h * 0.9, h * 0.07);
+    g.fill();
+    g.fillStyle = '#e8f1ff';
+    g.fillRect(-bw / 2, -h * 0.62, bw, h * 0.26);
+    g.fillStyle = '#1d6fd1';
+    g.font = '900 ' + Math.max(6, h * 0.17) + 'px "Arial Black",system-ui,sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText('SU', 0, -h * 0.49);
+    g.fillStyle = '#0f4a96';
+    g.fillRect(-bw * 0.28, -h * 1.0, bw * 0.56, h * 0.11);
+    g.fillStyle = '#7fb4f5';
+    g.fillRect(-bw * 0.36, -h * 0.84, bw * 0.12, h * 0.7);
+  } else if (kind === 'koni') {
     const w = h * 0.62;
     g.fillStyle = '#2b2f3d';
     rr(-w * 0.45, -h * 0.09, w * 0.9, h * 0.09, h * 0.02);
@@ -1215,6 +1377,8 @@ function drawObj(o) {
   const x = laneX(o.lf != null ? o.lf : o.lane, p);
   const far = Math.min(1, (p.y - HOR) / 60) * (o.d < 0 ? Math.max(0, 1 + o.d) : 1);
 
+  if (o.air > 0) { drawThrown(o, p, T, far); return; }
+
   if (T.seyit) {
     shadow(x, p.y, T.h * p.sc * 0.8);
     const hy = p.y - T.h * p.sc * 0.5;
@@ -1302,6 +1466,8 @@ function drawObj(o) {
     g.restore();
     return;
   }
+  if (o.ty === 'niyazi') { drawRare(o, p, x, far, 'niyazi', 'NİYAZİ', '#ff8a3d', '#2a1206', '#ffb070'); return; }
+  if (o.ty === 'mustafa') { drawRare(o, p, x, far, 'mustafa', 'MUSTAFA EYMEN', '#6bd0ff', '#06202e', '#9fe3ff'); return; }
   if (o.ty === 'yavuz') {
     const hh = T.h * p.sc;
     const hop = Math.abs(Math.sin(t * 5 + o.d)) * 14 * p.sc;
@@ -1396,6 +1562,11 @@ function drawPlayer() {
   let y = p.y - fly - bob;
   let rot = tilt + Math.sin(t * 12) * 0.03;
   let spr = charDef().spr;
+  if (bumpT > 0) {
+    const bu = 1 - bumpT / BUMP_TIME;
+    const be = Math.sin(Math.PI * clamp((bu - 0.2) / 0.8, 0, 1));
+    x -= 120 * be; y -= 70 * be; rot -= 0.55 * be;
+  }
 
   if (fallen) {
     const k = clamp(caughtT, 0, 1);
@@ -3114,6 +3285,283 @@ function drawMenu() {
   drawSprite('duran', W * 0.5, 1205 + bob, 580, 1, Math.sin(t * 1.4) * 0.015);
 }
 
+/* ---------- namaz animasyonu ---------- */
+const PRAYER_SEQ = [
+  { n: 'KIYAM', d: 1.3, leg: 0, rot: 0 },
+  { n: 'RÜKÛ', d: 0.9, leg: 0, rot: 1.45 },
+  { n: 'KIYAM', d: 0.7, leg: 0, rot: 0 },
+  { n: 'SECDE', d: 1.1, leg: 0.5, rot: 2.15 },
+  { n: 'OTURUŞ', d: 0.7, leg: 0.5, rot: 0 },
+  { n: 'SECDE', d: 1.1, leg: 0.5, rot: 2.15 }
+];
+const PRAYER_CYCLE = PRAYER_SEQ.reduce((a, q) => a + q.d, 0);
+function prayerPose(tt) {
+  const c = Math.floor(tt / PRAYER_CYCLE);
+  let r = tt - c * PRAYER_CYCLE, i = 0;
+  while (i < PRAYER_SEQ.length - 1 && r >= PRAYER_SEQ[i].d) { r -= PRAYER_SEQ[i].d; i++; }
+  const cur = PRAYER_SEQ[i];
+  const prev = (c === 0 && i === 0) ? cur : PRAYER_SEQ[(i + PRAYER_SEQ.length - 1) % PRAYER_SEQ.length];
+  const b = clamp(r / 0.45, 0, 1), e = b * b * (3 - 2 * b);
+  return { name: cur.n, leg: prev.leg + (cur.leg - prev.leg) * e, rot: prev.rot + (cur.rot - prev.rot) * e, rakat: c + 1 };
+}
+function drawEmirPrayer(x, feetY, h, pose) {
+  const im = IMG.emir;
+  const ry = feetY - 0.12 * h;
+  g.save();
+  g.beginPath();
+  g.moveTo(x - 205, ry - 55); g.lineTo(x + 205, ry - 55); g.lineTo(x + 300, ry + 55); g.lineTo(x - 300, ry + 55);
+  g.closePath();
+  const rg = g.createLinearGradient(0, ry - 55, 0, ry + 55);
+  rg.addColorStop(0, '#1b6b46'); rg.addColorStop(1, '#0d4a2f');
+  g.fillStyle = rg; g.fill();
+  g.lineWidth = 5; g.strokeStyle = '#e6c46a'; g.stroke();
+  g.beginPath();
+  g.moveTo(x - 170, ry - 40); g.lineTo(x + 170, ry - 40); g.lineTo(x + 248, ry + 40); g.lineTo(x - 248, ry + 40);
+  g.closePath();
+  g.lineWidth = 2.5; g.strokeStyle = 'rgba(230,196,106,.65)'; g.stroke();
+  g.restore();
+  if (!im || !im.complete || !im.naturalWidth) return;
+  const W0 = im.naturalWidth, H0 = im.naturalHeight, cut = Math.round(H0 * 0.483);
+  const w = h * W0 / H0, topH = h * cut / H0, botH = h * (H0 - cut) / H0;
+  const legH = botH * (1 - pose.leg);
+  const glow = g.createRadialGradient(x, feetY - h * 0.38, 20, x, feetY - h * 0.38, h * 0.62);
+  glow.addColorStop(0, 'rgba(125,255,178,.28)');
+  glow.addColorStop(1, 'rgba(125,255,178,0)');
+  g.save();
+  g.fillStyle = glow;
+  g.fillRect(x - h * 0.7, feetY - h * 1.1, h * 1.4, h * 1.3);
+  g.restore();
+  const ov = 2, ky = legH / (H0 - cut);
+  g.drawImage(im, 0, cut - ov, W0, H0 - cut + ov, x - w / 2, feetY - legH - ov * ky, w, legH + ov * ky);
+  g.save();
+  g.translate(x, feetY - legH);
+  g.rotate(pose.rot);
+  g.drawImage(im, 0, 0, W0, cut + ov, -w / 2, -topH, w, topH + ov * (topH / cut));
+  g.restore();
+}
+
+/* ---------- yol kenarı evler · Ahmet Deniz ---------- */
+function drawHouses() {
+  if (!houses.length) return;
+  const list = houses.filter(h => h.d > -1.5 && h.d < 90).sort((a, b) => b.d - a.d);
+  for (const hs of list) drawHouse(hs);
+}
+function drawHouse(hs) {
+  const p = proj(hs.d);
+  if (p.y < HOR + 3) return;
+  const far = clamp((p.y - HOR) / 50, 0, 1);
+  const sc = p.sc;
+  const hw = 440 * sc * hs.wm, hh = 620 * sc * hs.hm;
+  const cx = VP + hs.side * (1.52 * p.h - 220 * sc + hw / 2);
+  const by = p.y, L = cx - hw / 2, T0 = by - hh;
+  const C = HOUSE_COLS[hs.ci];
+  const floorY = by - hh * 0.48;
+  const act = hs.ahmet && !hs.done;
+  g.save();
+  g.globalAlpha = far;
+  shadow(cx, by, hw * 1.05, 0.25);
+  g.fillStyle = C.wall; g.fillRect(L, T0, hw, hh);
+  g.fillStyle = 'rgba(6,10,20,.28)'; g.fillRect(L, T0, hw, hh);
+  g.fillStyle = C.roof;
+  g.beginPath();
+  g.moveTo(L - hw * 0.06, T0); g.lineTo(L + hw * 1.06, T0); g.lineTo(L + hw * 0.82, T0 - hh * 0.2); g.lineTo(L + hw * 0.18, T0 - hh * 0.2);
+  g.closePath(); g.fill();
+  const lit = k => (hs.seed * 7 + k) % 1 > 0.45 ? '#ffe39a' : '#2b3345';
+  g.fillStyle = lit(0.1); g.fillRect(L + hw * 0.08, T0 + hh * 0.13, hw * 0.2, hh * 0.24);
+  g.fillStyle = lit(0.6); g.fillRect(L + hw * 0.72, T0 + hh * 0.13, hw * 0.2, hh * 0.24);
+  g.fillStyle = lit(0.3); g.fillRect(L + hw * 0.08, floorY + hh * 0.1, hw * 0.2, hh * 0.2);
+  g.fillStyle = lit(0.8); g.fillRect(L + hw * 0.72, floorY + hh * 0.1, hw * 0.2, hh * 0.2);
+  g.fillStyle = C.trim; g.fillRect(cx - hw * 0.1, by - hh * 0.3, hw * 0.2, hh * 0.3);
+  const bx = cx - hw * 0.34, bw = hw * 0.68;
+  g.fillStyle = act ? '#ffe39a' : '#2a2f3d';
+  g.fillRect(cx - hw * 0.14, floorY - hh * 0.3, hw * 0.28, hh * 0.3);
+  if (act) {
+    const pop = 1 - Math.pow(1 - clamp(hs.t / 0.45, 0, 1), 3);
+    const out = clamp((hs.t - 1.8) / 0.6, 0, 1);
+    const vis = pop * (1 - out);
+    const aH = hh * 0.32;
+    let lean = 0;
+    if (hs.t >= 0.45 && hs.t < 0.8) lean = hs.side * 0.28 * ((hs.t - 0.45) / 0.35);
+    else if (hs.t >= 0.8) lean = -hs.side * 0.35 * Math.max(0, 1 - (hs.t - 0.8) / 0.3);
+    g.save();
+    g.beginPath(); g.rect(bx, floorY - hh * 0.42, bw, hh * 0.42); g.clip();
+    drawSprite('ahmet', cx, floorY + (1 - vis) * aH * 0.95, aH, 1, lean);
+    g.restore();
+  }
+  g.fillStyle = '#5b6070'; g.fillRect(bx, floorY, bw, hh * 0.035);
+  g.strokeStyle = '#7b8196'; g.lineWidth = Math.max(1, sc * 3);
+  const ry = floorY - hh * 0.15;
+  g.beginPath(); g.moveTo(bx, ry); g.lineTo(bx + bw, ry); g.stroke();
+  const nb = 9;
+  for (let i = 0; i <= nb; i++) { g.beginPath(); g.moveTo(bx + bw * i / nb, ry); g.lineTo(bx + bw * i / nb, floorY); g.stroke(); }
+  if (act && hs.t > 0.2) {
+    const fs = Math.max(16, 42 * sc);
+    g.font = '900 ' + fs + 'px "Arial Black",system-ui,sans-serif';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.lineWidth = Math.max(3, fs * 0.16); g.strokeStyle = '#1a1206'; g.fillStyle = '#ffd23f';
+    g.strokeText('AHMET DENİZ', cx, T0 - hh * 0.2 - fs * 0.8);
+    g.fillText('AHMET DENİZ', cx, T0 - hh * 0.2 - fs * 0.8);
+  }
+  g.restore();
+}
+function drawThrown(o, p, T, far) {
+  const u = 1 - o.air;
+  const lat = o.side * 2.1 * (1 - u) + o.lane * u;
+  const x = VP + lat * (2 / 3) * p.h;
+  const lift = o.lift0 * (1 - u * u) + Math.sin(Math.PI * u) * 90;
+  const y = p.y - lift * p.sc;
+  const hl = T.h * p.sc;
+  shadow(laneX(o.lane, p), p.y, hl * 0.7, 0.1 + 0.2 * u);
+  g.save();
+  g.translate(x, y - hl * 0.5);
+  g.rotate(o.spin + u * (o.ty === 'emir' ? 5 : 11));
+  g.translate(-x, -(y - hl * 0.5));
+  if (o.ty === 'emir') {
+    g.shadowColor = '#7dffb2'; g.shadowBlur = 18 + 30 * p.sc;
+    drawSprite('emir', x, y, hl, far);
+  } else {
+    drawProp(T.prop, x, y, hl, far);
+  }
+  g.restore();
+}
+function drawRare(o, p, x, far, spr, label, glow, strokeCol, fillCol) {
+  const hh = TYPES[o.ty].h * p.sc;
+  const hop = Math.abs(Math.sin(t * 5 + o.d)) * 12 * p.sc;
+  shadow(x, p.y, hh * 0.62);
+  g.save();
+  g.shadowColor = glow;
+  g.shadowBlur = 18 + 30 * p.sc;
+  drawSprite(spr, x, p.y - hop, hh, far);
+  g.restore();
+  const fs = Math.max(10, 40 * p.sc);
+  g.save();
+  g.globalAlpha = far;
+  g.font = '900 ' + fs + 'px "Arial Black",system-ui,sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineWidth = Math.max(2, fs * 0.16);
+  g.strokeStyle = strokeCol; g.fillStyle = fillCol;
+  g.strokeText(label, x, p.y - hh - fs * 0.7 - hop);
+  g.fillText(label, x, p.y - hh - fs * 0.7 - hop);
+  g.restore();
+}
+
+/* ---------- Niyazi göbek atma ---------- */
+function drawBump() {
+  if (bumpT <= 0) return;
+  const u = 1 - bumpT / BUMP_TIME;
+  const p = proj(0);
+  const x0 = laneX(px, p);
+  const arrive = clamp(u / 0.25, 0, 1);
+  const e = 1 - Math.pow(1 - arrive, 3);
+  const leave = clamp((u - 0.8) / 0.2, 0, 1);
+  const nx = x0 + 175 + (1 - e) * 620 + leave * 620;
+  const sway = Math.sin(t * 18) * 0.07;
+  const sq = 1 + Math.sin(t * 18 + 1) * 0.05;
+  const feet = p.y + 50 - Math.abs(Math.sin(t * 9)) * 14;
+  shadow(nx, p.y + 20, 360, 0.3 * (1 - leave));
+  g.save();
+  g.shadowColor = '#ff8a3d';
+  g.shadowBlur = 26;
+  drawSprite('niyazi', nx, feet, 520, 1 - leave * 0.8, sway, sq);
+  g.restore();
+  if (u >= 0.25 && u < 0.95) {
+    const k = clamp((u - 0.25) / 0.12, 0, 1);
+    const pop = 1 + 0.35 * Math.sin(Math.PI * Math.min(1, k * 1.4));
+    g.save();
+    g.globalAlpha = 1 - clamp((u - 0.85) / 0.1, 0, 1);
+    g.translate(W / 2, 560);
+    g.scale(pop, pop);
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '900 120px "Arial Black",system-ui,sans-serif';
+    g.lineWidth = 14; g.strokeStyle = '#2a1206'; g.fillStyle = '#ff8a3d';
+    g.strokeText('GÖBEK!', 0, 0); g.fillText('GÖBEK!', 0, 0);
+    g.font = '900 54px "Arial Black",system-ui,sans-serif';
+    g.lineWidth = 9; g.strokeStyle = '#2a0b0b'; g.fillStyle = '#ff5a5a';
+    const pushed = Math.round(bumpTotal - bumpLeft);
+    g.strokeText('-' + pushed + ' M', 0, 96); g.fillText('-' + pushed + ' M', 0, 96);
+    g.restore();
+  }
+}
+
+/* ---------- Mustafa Eymen'in telefonu ---------- */
+function fitText(txt, maxW, px0) {
+  let s0 = px0;
+  g.font = '900 ' + s0 + 'px "Arial Black",system-ui,sans-serif';
+  while (g.measureText(txt).width > maxW && s0 > 8) { s0 -= 1; g.font = '900 ' + s0 + 'px "Arial Black",system-ui,sans-serif'; }
+}
+function drawPhoneBody(x, y, w) {
+  const k = w / 262, u = REV_TIME - revT;
+  g.save();
+  g.translate(x, y);
+  g.scale(k, k);
+  g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 26;
+  rr(0, 0, 262, 470, 34); g.fillStyle = '#0c0d12'; g.fill();
+  g.shadowBlur = 0; g.lineWidth = 5; g.strokeStyle = '#3b3f4d'; g.stroke();
+  rr(12, 16, 238, 438, 24); g.fillStyle = '#15161d'; g.fill();
+  g.save();
+  rr(12, 16, 238, 438, 24); g.clip();
+  rr(26, 30, 40, 28, 8); g.fillStyle = '#ff2a2a'; g.fill();
+  g.beginPath(); g.moveTo(41, 37); g.lineTo(41, 51); g.lineTo(54, 44); g.closePath(); g.fillStyle = '#fff'; g.fill();
+  g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillStyle = '#fff';
+  g.font = '800 20px system-ui,sans-serif'; g.fillText('Shorts', 74, 45);
+  g.textAlign = 'center';
+  g.fillStyle = '#ffffff'; fitText('YT SHORTS', 214, 30); g.fillText('YT SHORTS', 131, 98);
+  g.fillStyle = '#ffd23f'; fitText('KOMİK YORUMLAR TR', 214, 22); g.fillText('KOMİK YORUMLAR TR', 131, 132);
+  const vg = g.createLinearGradient(30, 158, 232, 270);
+  vg.addColorStop(0, '#6a3cff'); vg.addColorStop(1, '#ff3c8e');
+  rr(30, 158, 202, 112, 14); g.fillStyle = vg; g.fill();
+  g.font = '44px system-ui,sans-serif'; g.fillStyle = '#fff';
+  g.fillText('😂', 131, 214 + Math.sin(t * 8) * 4);
+  g.save();
+  g.beginPath(); g.rect(24, 282, 214, 150); g.clip();
+  const off = (u * 40) % 50;
+  for (let i = -1; i < 4; i++) {
+    const cy = 290 + i * 50 + (50 - off);
+    g.fillStyle = ['#ff8a3d', '#6bd0ff', '#7dffb2', '#ff6bd5'][((i + Math.floor(u * 0.8)) % 4 + 4) % 4];
+    g.beginPath(); g.arc(42, cy + 16, 13, 0, 7); g.fill();
+    g.fillStyle = '#3a3d4d'; rr(64, cy + 4, 90, 9, 4); g.fill();
+    g.fillStyle = '#2a2d3b'; rr(64, cy + 20, 140, 9, 4); g.fill();
+    g.font = '15px system-ui,sans-serif'; g.textAlign = 'right'; g.fillStyle = '#fff';
+    g.fillText('😂', 230, cy + 16);
+  }
+  g.restore();
+  g.fillStyle = '#ff2a2a'; g.fillRect(12, 446, 238 * clamp(revT / REV_TIME, 0, 1), 8);
+  g.restore();
+  g.restore();
+}
+function drawPhone() {
+  if (revT <= 0 || (st !== 'play' && st !== 'pause')) return;
+  const u = REV_TIME - revT;
+  const e = 1 - Math.pow(1 - clamp(u / 1.5, 0, 1), 3);
+  const dockX = 22, dockY = 430, dw = 262;
+  if (u < 1.9) {
+    const a = u < 1.5 ? 1 : 1 - (u - 1.5) / 0.4;
+    const mx = W - 190 + (1 - clamp(u / 0.35, 0, 1)) * 340;
+    drawSprite('mustafa', mx, 1590, 520, a, -0.04 + Math.sin(t * 10) * 0.015);
+  }
+  const sx = W - 360, sy = 1000, sc = 1.5 - 0.5 * e;
+  g.save();
+  g.globalAlpha = 0.97;
+  drawPhoneBody(sx + (dockX - sx) * e, sy + (dockY - sy) * e, dw * sc);
+  g.restore();
+  g.save();
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  const cxp = dockX + dw / 2;
+  const lines = [
+    ['KONTROLLER TERS!', 30, '#ff5a5a', '#2a0b0b', 506],
+    ['SAĞ-SOL TERS', 22, '#ffffff', '#0a0f1a', 548],
+    ['ZIPLA-KAY TERS', 22, '#ffffff', '#0a0f1a', 580],
+    ['YAVAŞSIN!', 22, '#ffd23f', '#1a1206', 612]
+  ];
+  for (const [txt, fpx, fill, stroke, dy] of lines) {
+    fitText(txt, 250, fpx);
+    g.lineWidth = 6; g.strokeStyle = stroke; g.fillStyle = fill;
+    g.strokeText(txt, cxp, dockY + dy);
+    g.fillText(txt, cxp, dockY + dy);
+  }
+  g.restore();
+}
+
 function drawEmirEffect() {
   if (emirPrayerT > 0) {
     g.save();
@@ -3127,7 +3575,17 @@ function drawEmirEffect() {
     g.fillStyle = '#7dffb2';
     g.strokeText('NAMAZ MOLASI', W / 2, 280);
     g.fillText('NAMAZ MOLASI', W / 2, 280);
-    drawSprite('emir', W / 2, 1260, 650, 1);
+    const pose = prayerPose(EMIR_PRAYER_TIME - emirPrayerT);
+    drawEmirPrayer(W / 2, 1300, 650, pose);
+    g.font = '900 54px "Arial Black",system-ui,sans-serif';
+    g.lineWidth = 7;
+    g.strokeStyle = '#10251b';
+    g.fillStyle = '#ffffff';
+    g.strokeText(pose.name, W / 2, 400);
+    g.fillText(pose.name, W / 2, 400);
+    g.font = '800 34px system-ui,sans-serif';
+    g.fillStyle = '#9fe9bd';
+    g.fillText(Math.min(2, pose.rakat) + '. RAKAT', W / 2, 466);
     g.font = '900 78px "Arial Black",system-ui,sans-serif';
     g.fillStyle = '#ffffff';
     g.fillText(Math.ceil(emirPrayerT) + ' SANİYE', W / 2, 1390);
@@ -3178,10 +3636,12 @@ function render(dt) {
     const vis = objs.filter(o => o !== hb && !o.dead);
     const far = vis.filter(o => o.d >= 0).sort((a, b) => b.d - a.d);
     const near = vis.filter(o => o.d < 0);
+    if (!boss) drawHouses();
     for (const o of far) drawObj(o);
     drawYavuz(false);
     const pp = drawPlayer();
     drawYavuz(true);
+    drawBump();
     for (const o of near) drawObj(o);
     drawParticles(dt);
     if (boss) drawBossFx(dt);
@@ -3196,6 +3656,7 @@ function render(dt) {
     if (st === 'kid') drawKidFx(dt);
   }
   drawEmirEffect();
+  drawPhone();
   g.restore();
   if (flash > 0) {
     g.fillStyle = 'rgba(255,255,255,' + (flash * 0.7) + ')';
@@ -3460,7 +3921,7 @@ async function shareScore() {
 }
 
 /* ---------- kayma · kalkan · rastgele olaylar ---------- */
-function slide() {
+function slideReal() {
   if (st !== 'play' || slideT > 0 || jumpT >= 0) return;
   slideT = 0.62;
   SFX.effect('slide');
