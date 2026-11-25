@@ -772,7 +772,13 @@ function updatePlay(dt) {
     if (revT === 0) flashMessage('KONTROLLER DÜZELDİ!');
   }
   if (bumpT > 0) { updateBump(dt); return; }
-  if (emirBoostT > 0) emirBoostT = Math.max(0, emirBoostT - dt);
+  if (emirBoostT > 0) {
+    emirBoostT = Math.max(0, emirBoostT - dt);
+    if (emirBoostT === 0) {
+      clearNear(30, false);
+      inv = Math.max(inv, 0.6);
+    }
+  }
   if (emirShoutT > 0) emirShoutT = Math.max(0, emirShoutT - dt);
   if (comboN > 0 && t - lastCoinT >= COMBO_WINDOW) comboN = 0;
   if (boss) { updateBoss(dt); return; }
