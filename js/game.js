@@ -329,9 +329,9 @@ function spawnRow(d) {
     objs.push({ ty: 'yavuz', lane: free, d: d + 1 });
   } else if (rareReady && rareRoll < YAV_CHANCE * 2) {
     objs.push({ ty: 'emir', lane: free, d: d + 1 });
-  } else if (rareReady && rareRoll < YAV_CHANCE * 3) {
-    objs.push({ ty: 'niyazi', lane: free, d: d + 1 });
-  } else if (rareReady && rareRoll < YAV_CHANCE * 4) {
+  } else if (rareReady && nObs === 1 && rareRoll < YAV_CHANCE * 3) {
+    objs.push({ ty: 'niyazi', lane: free, d: d + 1 });   // nObs===1: yanındaki diğer şerit boş kalır, tek yol kapanmaz
+  } else if (rareReady && nObs === 1 && rareRoll >= YAV_CHANCE * 3 && rareRoll < YAV_CHANCE * 4) {
     objs.push({ ty: 'mustafa', lane: free, d: d + 1 });
   } else if (!mode && Math.random() < 0.1) {
     objs.push({ ty: rnd(['turbo', 'exam', 'fly']), lane: free, d: d + 1 });
