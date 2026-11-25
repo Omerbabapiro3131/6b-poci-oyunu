@@ -128,7 +128,15 @@ body.mode-board #hud.on ~ #touch{display:flex}
 .row{width:100%;display:flex;justify-content:space-between;align-items:center;gap:2cqw;background:rgba(255,255,255,.06);padding:1.2cqh 3cqw;border-radius:1.6cqh;font-size:2.5cqh}
 .row span:first-child{color:#ffd23f;flex:none;min-width:5cqw}
 .row.me{background:rgba(255,210,63,.16);box-shadow:inset 0 0 0 .22cqh #ffd23f}
-.row .lbname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.row .lbname {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
 .row.admin{gap:1.2cqw;font-size:2.3cqh;padding:1cqh 2.4cqw}
 .row.admin .adist{flex:none;min-width:11cqw;text-align:right}
 .abtns{display:flex;gap:1cqw;flex:none}
