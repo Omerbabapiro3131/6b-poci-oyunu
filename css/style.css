@@ -91,7 +91,7 @@ body.mode-board #hud.on ~ #touch{display:flex}
 #modeEnd{position:absolute;left:50%;top:20%;transform:translate(-50%,-50%) scale(.4);opacity:0;font-size:4cqh;color:#fff;white-space:nowrap;text-shadow:0 .6cqh 0 #7a1010,0 0 3cqh rgba(255,120,40,.9);-webkit-text-stroke:.3cqh #3a0b0b;transition:transform .35s cubic-bezier(.3,1.7,.5,1),opacity .25s;pointer-events:none}
 #modeEnd.on{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(-3deg)}
 
-#flashMsg{position:absolute;left:50%;top:16%;transform:translate(-50%,-50%) scale(.5);opacity:0;font-size:2.05cqh;color:#141d3a;background:linear-gradient(#ffe25a,#ffb400);border:.25cqh solid #141d3a;border-radius:99px;padding:.42cqh 2.1cqw;letter-spacing:.02em;white-space:nowrap;pointer-events:none;box-shadow:0 .6cqh 0 rgba(0,0,0,.35);z-index:30}
+#flashMsg{position:absolute;left:50%;top:5%;transform:translate(-50%,-50%) scale(.5);opacity:0;font-size:2.05cqh;color:#141d3a;background:linear-gradient(#ffe25a,#ffb400);border:.25cqh solid #141d3a;border-radius:99px;padding:.42cqh 2.1cqw;letter-spacing:.02em;white-space:nowrap;pointer-events:none;box-shadow:0 .6cqh 0 rgba(0,0,0,.35);z-index:30}
 #flashMsg.on{animation:pop 1.5s cubic-bezier(.3,1.6,.5,1) forwards}
 @keyframes pop{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}12%{opacity:1;transform:translate(-50%,-50%) scale(1.06)}22%{transform:translate(-50%,-50%) scale(.97)}80%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-70%) scale(.9)}}
 
