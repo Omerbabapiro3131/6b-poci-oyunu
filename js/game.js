@@ -4,7 +4,7 @@
 const W = 941, H = 1672, HOR = 385, VP = 470, K = 5;
 const MODE_TIME = 10, OFFER_TIME = 4;
 const YAV_TIME = 30, YAV_CHANCE = 0.025;
-const EMIR_PRAYER_TIME = 10, EMIR_BOOST_TIME = 6;
+const EMIR_PRAYER_TIME = 10, EMIR_BOOST_TIME = 10;
 const REV_TIME = 10, REV_SLOW = 0.6;            // Mustafa Eymen: ters kontrol süresi, yavaşlama çarpanı
 const NIYAZI_PUSH = 1000, BUMP_TIME = 1.8;      // Niyazi: geri itme (m) ve animasyon süresi
 const JUMP_H = 260, JUMP_LEN = 0.72, YAV_JUMP_H = 640, YAV_JUMP_LEN = 0.98;
