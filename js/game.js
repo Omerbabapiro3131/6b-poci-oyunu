@@ -427,7 +427,7 @@ function pickEmir() {
   flash = Math.max(flash, 0.35);
   if (Math.random() < 0.5) {
     emirPrayerT = EMIR_PRAYER_TIME;
-    emirBoostT = 0;
+    // emirBoostT = 0;   <-- SİLİNDİ: iman gücü artık namazda gitmiyor
     emirShoutT = 0;
     flashMessage('EMİR 10 SANİYELİK NAMAZ MOLASI VERDİ!');
   } else {
@@ -853,10 +853,16 @@ function jumpReal() {
 function updatePlay(dt) {
   if (emirPrayerT > 0) {
     emirPrayerT = Math.max(0, emirPrayerT - dt);
-    if (emirPrayerT === 0) flashMessage('NAMAZ MOLASI BİTTİ!');
+    if (emirPrayerT === 0) {
+      flashMessage('NAMAZ MOLASI BİTTİ!');
+      clearNear(30, true);                 // namazdan sonra etrafı temizle
+      inv = Math.max(inv, 0.8);            // temizlikten sonra kısa dokunulmazlık
+      flash = Math.max(flash, 0.3);
+    }
     updateHud();
     return;
   }
+  // ... fonksiyonun geri kalanı aynı
   if (revT > 0) {
     revT = Math.max(0, revT - dt);
     if (revT === 0) flashMessage('KONTROLLER DÜZELDİ!');
