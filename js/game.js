@@ -52,7 +52,7 @@ const IMG_SRC = {
   yavuz: 'assets/img/yavuz.png',
   emir: 'assets/img/emir.png',
   niyazi: 'assets/img/niyazi.png',
-  mustafa: 'assets/img/mustafa_eymen.png',
+  mustafa: 'assets/img/yeni_mustafa_resmi.png',
   ahmet: 'assets/img/ahmet_deniz.png',
   buglem: 'assets/img/buglem.png',
   elif: 'assets/img/elif_irem.png',
