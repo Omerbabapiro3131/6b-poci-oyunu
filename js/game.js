@@ -4,9 +4,15 @@
 const W = 941, H = 1672, HOR = 385, VP = 470, K = 5;
 const MODE_TIME = 10, OFFER_TIME = 4;
 const YAV_TIME = 30, YAV_CHANCE = 0.025;
-const EMIR_PRAYER_TIME = 10, EMIR_BOOST_TIME = 10;
+const EMIR_PRAYER_TIME = 10, EMIR_BOOST_TIME = 6;
 const REV_TIME = 10, REV_SLOW = 0.6;            // Mustafa Eymen: ters kontrol süresi, yavaşlama çarpanı
-const NIYAZI_PUSH = 1000, BUMP_TIME = 1.8;      // Niyazi: geri itme (m) ve animasyon süresi
+const NIYAZI_PUSH = 1000, BUMP_TIME = 1.8;
+const FOG_TIME = 7, SPEEDUP_TIME = 7, STUN_TIME = 1.8, SHIELD_TIME = 20;   // Ezra sis, Kutay hızlanma, Muhammed Ali sersemletme, Buğlem kalkan süresi
+const BUGRA_STEAL = 250, ELIF_GIVE = 250;                                     // Ahmet Buğra'nın çaldığı / Elif İrem'in verdiği 6/B (cüzdandan)
+const RARE_LIST = ['niyazi', 'mustafa', 'buglem', 'elif', 'ezra', 'kutay', 'bugra', 'muhammed'];   // Yavuz/Emir dışındaki nadir karakterler (her biri YAV_CHANCE)
+const RARE_DEF = {
+  buglem: 'BUĞLEM', elif: 'ELİF İREM', ezra: 'EZRA ZEREN', kutay: 'KUTAY', bugra: 'AHMET BUĞRA', muhammed: 'MUHAMMED ALİ'
+};      // Niyazi: geri itme (m) ve animasyon süresi
 const JUMP_H = 260, JUMP_LEN = 0.72, YAV_JUMP_H = 640, YAV_JUMP_LEN = 0.98;
 const BOSS_EVERY = 6000, BOSS_HP = 5, BOSS_LIVES = 3, BOSS_REWARD = 30;
 const BOSS_FEET = 860, BOSS_H = 560;
@@ -48,6 +54,12 @@ const IMG_SRC = {
   niyazi: 'assets/img/niyazi.png',
   mustafa: 'assets/img/mustafa_eymen.png',
   ahmet: 'assets/img/ahmet_deniz.png',
+  buglem: 'assets/img/buglem.png',
+  elif: 'assets/img/elif_irem.png',
+  ezra: 'assets/img/ezra_zeren.png',
+  muhammed: 'assets/img/muhammed_ali.png',
+  bugra: 'assets/img/ahmet_bugra.png',
+  kutay: 'assets/img/kutay.png',
   merve: 'assets/img/merve.png',
   kid67: 'assets/img/kid67.png',
   scare: 'assets/img/jumpscare.jpg'
@@ -74,7 +86,8 @@ let testMode = store.get('test', false);
 const CHARS = [
   { id: 'kosan', name: 'METİN OKTAY', desc: 'KLASİK KOŞUCU · YETENEK YOK', cost: 0, spr: 'kosan', col: '#3b6bff' },
   { id: 'yavuz', name: 'YAVUZ', desc: 'ZIPLAMASI %25 DAHA YÜKSEK', cost: 150, spr: 'yavuz', col: '#c0162f' },
-  { id: 'merve', name: 'MERVE MİNA', desc: 'HER KOŞUDA İLK ÇARPMAYI AFFEDER', cost: 250, spr: 'merve', col: '#d81b3c' }
+  { id: 'merve', name: 'MERVE MİNA', desc: 'HER KOŞUDA İLK ÇARPMAYI AFFEDER', cost: 250, spr: 'merve', col: '#d81b3c' },
+  { id: 'bugra', name: 'AHMET BUĞRA', desc: 'KOSTÜM · HİÇBİR YETENEĞİ YOK · BİR İŞE YARAMAZ', cost: 14000, spr: 'bugra', img: 'ahmet_bugra.png', col: '#5aa0ff' }
 ];
 const TRAILS = [
   { id: '', name: 'İZ YOK', cost: 0 },
@@ -145,6 +158,12 @@ const TYPES = {
   niyazi: { h: 340, pw: 'niyazi', avatar: 'niyazi' },
   mustafa: { h: 340, pw: 'mustafa', avatar: 'mustafa' },
   teneke: { h: 170, low: true, prop: 'teneke' },
+  buglem: { h: 340, pw: 'rare', avatar: 'buglem' },
+  elif: { h: 340, pw: 'rare', avatar: 'elif' },
+  ezra: { h: 340, pw: 'rare', avatar: 'ezra' },
+  kutay: { h: 340, pw: 'rare', avatar: 'kutay' },
+  bugra: { h: 340, pw: 'rare', avatar: 'bugra' },
+  muhammed: { h: 340, pw: 'rare', avatar: 'muhammed' },
   borb: { h: 130, pw: 'borb' },
   asma: { h: 120, hang: true },
   kid: { h: 300, pw: 'kid' }
@@ -163,7 +182,7 @@ let flash = 0, shake = 0, hitBy = null, caughtT = 0, overT = 0;
 let modeMusic = null, pwLoop = null, deathSnd = null, lastCoinSfx = 0;
 let yav = null, yavSnd = null, jumpHt = JUMP_H, jumpLen = JUMP_LEN;
 let emirPrayerT = 0, emirBoostT = 0, emirShoutT = 0;
-let revT = 0;                                              // ters kontrol sayacı (Mustafa Eymen)
+let revT = 0, fogT = 0, speedT = 0, stunT = 0, shieldT = 0;                                              // ters kontrol sayacı (Mustafa Eymen)
 let bumpT = 0, bumpTotal = 0, bumpLeft = 0, bumpRate = 0, bumpHit = false;   // Niyazi göbek atma
 let houses = [], houseAt = 0, ahmetPending = false;        // yol kenarı evler + Ahmet Deniz
 let boss = null, bossNext = BOSS_EVERY;
@@ -215,7 +234,7 @@ function resetRun() {
   objs = []; particles = [];
   lane = 0; px = 0; jumpT = -1; speed = 15.5; dist = 0; coins = 0; spawnAt = 18;
   stopYav(); emirPrayerT = 0; emirBoostT = 0; emirShoutT = 0; jumpHt = JUMP_H; jumpLen = JUMP_LEN;
-  revT = 0; bumpT = 0; bumpLeft = 0; bumpHit = false; ahmetPending = false; houseAt = 6; seedHouses();
+  revT = 0; fogT = 0; speedT = 0; stunT = 0; shieldT = 0; bumpT = 0; bumpLeft = 0; bumpHit = false; ahmetPending = false; houseAt = 6; seedHouses();
   boss = null; bossNext = BOSS_EVERY;
   shield = prof.ch === 'merve' ? 1 : 0; slideT = 0; comboN = 0; lastCoinT = -9; ev = null; evNext = 30;
   kid = null; kidLift = 0; infaz = null; scare = null; stopInfazMusic();
@@ -259,7 +278,7 @@ function goMenu() {
   stopYav();
   boss = null;
   kid = null; kidLift = 0; infaz = null; scare = null; slideT = 0; stopInfazMusic(); refreshBadges();
-  revT = 0; bumpT = 0; houses = [];
+  revT = 0; fogT = 0; speedT = 0; stunT = 0; shieldT = 0; bumpT = 0; houses = [];
   st = 'menu';
   caughtT = 0; chase = null; hitBy = null; offer = null;
   beat = null; beatOver = false;
@@ -312,7 +331,10 @@ function spawnRow(d) {
   }
   const lanes = [-1, 0, 1].sort(() => Math.random() - 0.5);
   const hard = Math.min(1, run / 2700);
-  const nObs = Math.random() < 0.32 + hard * 0.4 ? 2 : 1;
+  const rareReady = !mode && !yav && run > 120 && revT <= 0 && bumpT <= 0 && !objs.some(o => (o.ty === 'yavuz' || o.ty === 'emir' || RARE_LIST.includes(o.ty)) && !o.dead);
+  const rareRoll = Math.random();
+  const newRare = rareReady && rareRoll >= YAV_CHANCE * 2 && rareRoll < YAV_CHANCE * (2 + RARE_LIST.length);
+  const nObs = newRare ? 1 : (Math.random() < 0.32 + hard * 0.4 ? 2 : 1);   // yeni karakter satırı tek engelli: diğer şerit boş kalır
   for (let i = 0; i < nObs; i++) {
     const r = Math.random();
     let ty;
@@ -323,16 +345,13 @@ function spawnRow(d) {
     objs.push({ ty, lane: lanes[i], d });
   }
   const free = lanes[nObs];
-  const rareReady = !mode && !yav && run > 120 && revT <= 0 && bumpT <= 0 && !objs.some(o => (o.ty === 'yavuz' || o.ty === 'emir' || o.ty === 'niyazi' || o.ty === 'mustafa') && !o.dead);
-  const rareRoll = Math.random();
   if (rareReady && rareRoll < YAV_CHANCE) {
     objs.push({ ty: 'yavuz', lane: free, d: d + 1 });
   } else if (rareReady && rareRoll < YAV_CHANCE * 2) {
     objs.push({ ty: 'emir', lane: free, d: d + 1 });
-  } else if (rareReady && nObs === 1 && rareRoll < YAV_CHANCE * 3) {
-    objs.push({ ty: 'niyazi', lane: free, d: d + 1 });   // nObs===1: yanındaki diğer şerit boş kalır, tek yol kapanmaz
-  } else if (rareReady && nObs === 1 && rareRoll >= YAV_CHANCE * 3 && rareRoll < YAV_CHANCE * 4) {
-    objs.push({ ty: 'mustafa', lane: free, d: d + 1 });
+  } else if (rareReady && nObs === 1 && rareRoll >= YAV_CHANCE * 2 && rareRoll < YAV_CHANCE * (2 + RARE_LIST.length)) {
+    // her biri YAV_CHANCE; yalnız tek engelli sıralarda → yanındaki şerit boş kalır, tek çıkış kapanmaz
+    objs.push({ ty: RARE_LIST[Math.floor(rareRoll / YAV_CHANCE) - 2], lane: free, d: d + 1 });
   } else if (!mode && Math.random() < 0.1) {
     objs.push({ ty: rnd(['turbo', 'exam', 'fly']), lane: free, d: d + 1 });
   } else {
@@ -466,6 +485,48 @@ function updateBump(dt) {
   }
   updateHud();
 }
+function addRunCoins(n) {
+  if (mode) modeStars += n; else coins += n;
+}
+function pickRare(ty) {
+  const p = proj(0);
+  flash = Math.max(flash, 0.3);
+  if (ty === 'buglem') {                                   // iyi: 20 sn kalkan (bir çarpmada kırılır, 20 sn'de çarpmazsan söner)
+    if (shield > 0) { flashMessage('KALKANIN ZATEN VAR!'); }
+    else { shield = 1; shieldT = SHIELD_TIME; flashMessage('BUĞLEM 20 SN KALKAN VERDİ!'); }
+    SFX.effect('pickup');
+  } else if (ty === 'elif') {                              // iyi: cüzdana +250 6/B
+    prof.wallet += ELIF_GIVE; saveProf();
+    flashMessage('ELİF İREM +' + ELIF_GIVE + ' 6/B VERDİ!');
+    SFX.effect('pickup');
+    spawnBurst(laneX(px, p), p.y - 120 * p.sc, 16, ['#ffd23f', '#fff6c0', '#ff9d00'], 560, 900);
+  } else if (ty === 'muhammed') {                          // kötü: yumruk, 1,8 sn sersemletir (kontroller kilitli)
+    stunT = STUN_TIME;
+    shake = 1;
+    flashMessage('MUHAMMED ALİ YUMRUK ATTI!');
+    SFX.effect('smash');
+    buzz(120);
+    spawnBurst(laneX(px, p), p.y - 170 * p.sc, 14, ['#ffffff', '#ffd23f', '#ff6b6b'], 600, 1100);
+  } else if (ty === 'ezra') {                              // kötü: sis topunu ileri sıkar, ileride sis olur
+    fogT = FOG_TIME;
+    flashMessage('EZRA ZEREN SİS TOPU SIKTI!');
+    SFX.effect('whoosh');
+    for (const dd of [3, 7, 12, 18, 26, 36]) {
+      const q = proj(dd);
+      spawnBurst(laneX(px, q), q.y - 60 * q.sc, 10, ['#e6ebf4', '#c8d0de', '#ffffff'], 260, 700);
+    }
+  } else if (ty === 'bugra') {                             // kötü: cüzdandan 250 6/B çalar, yetmezse eksiye düşer
+    prof.wallet -= BUGRA_STEAL; saveProf();
+    flashMessage('AHMET BUĞRA -' + BUGRA_STEAL + ' 6/B ALDI!' + (prof.wallet < 0 ? ' CÜZDAN EKSİDE!' : ''));
+    SFX.effect('smash');
+    shake = Math.max(shake, 0.5);
+  } else if (ty === 'kutay') {                             // karışık: 7 sn %45 hız
+    speedT = SPEEDUP_TIME;
+    flashMessage('KUTAY HIZLANDIRDI!');
+    SFX.effect('whoosh');
+  }
+  updateHud();
+}
 function pickMustafa() {
   revT = REV_TIME;
   flash = Math.max(flash, 0.35);
@@ -549,6 +610,10 @@ function pick(o) {
   }
   if (o.ty === 'mustafa') {
     pickMustafa();
+    return;
+  }
+  if (RARE_DEF[o.ty]) {
+    pickRare(o.ty);
     return;
   }
   if (o.ty === 'turbo') {
@@ -729,7 +794,7 @@ function recordLocalRun(d, c) {
 
 /* ---------- update ---------- */
 function move(dx) {
-  if (st !== 'play' || emirPrayerT > 0) return;
+  if (st !== 'play' || emirPrayerT > 0 || stunT > 0) return;
   if (revT > 0) dx = -dx;
   const nl = clamp(lane + dx, -1, 1);
   if (nl !== lane) {
@@ -741,7 +806,7 @@ function move(dx) {
 function jump() { if (revT > 0) slideReal(); else jumpReal(); }
 function slide() { if (revT > 0) jumpReal(); else slideReal(); }
 function jumpReal() {
-  if (st !== 'play' || emirPrayerT > 0) return;
+  if (st !== 'play' || emirPrayerT > 0 || stunT > 0) return;
   if (pw === 'fly') return;
   if (jumpT >= 0) return;
   jumpT = 0;
@@ -771,6 +836,14 @@ function updatePlay(dt) {
     revT = Math.max(0, revT - dt);
     if (revT === 0) flashMessage('KONTROLLER DÜZELDİ!');
   }
+  if (fogT > 0) fogT = Math.max(0, fogT - dt);
+  if (speedT > 0) speedT = Math.max(0, speedT - dt);
+  if (stunT > 0) stunT = Math.max(0, stunT - dt);
+  if (shieldT > 0) {
+    shieldT = Math.max(0, shieldT - dt);
+    if (shield <= 0) shieldT = 0;
+    else if (shieldT === 0) { shield = 0; flashMessage('KALKAN SÖNDÜ'); }
+  }
   if (bumpT > 0) { updateBump(dt); return; }
   if (emirBoostT > 0) {
     emirBoostT = Math.max(0, emirBoostT - dt);
@@ -782,7 +855,7 @@ function updatePlay(dt) {
   if (emirShoutT > 0) emirShoutT = Math.max(0, emirShoutT - dt);
   if (comboN > 0 && t - lastCoinT >= COMBO_WINDOW) comboN = 0;
   if (boss) { updateBoss(dt); return; }
-  const sp = speed * (pw === 'turbo' ? 1.7 : 1) * (emirBoostT > 0 ? 2.35 : 1) * (ev ? ev.mul : 1) * (revT > 0 ? REV_SLOW : 1);
+  const sp = speed * (pw === 'turbo' ? 1.7 : 1) * (emirBoostT > 0 ? 2.35 : 1) * (ev ? ev.mul : 1) * (revT > 0 ? REV_SLOW : 1) * (speedT > 0 ? 1.45 : 1);
   dist += sp * dt * (mode ? 2 : 1);
   run += sp * dt;
   speed = 15.5 + 15.5 * (1 - Math.exp(-run / 1500));
@@ -942,13 +1015,17 @@ function updateHud() {
   $('coinLabel').textContent = mode ? 'SENTA' : '6/B';
   const pe = $('pw');
   const yavOn = !!yav && yav.leave < 0;
-  if (pw || yavOn || emirBoostT > 0 || emirPrayerT > 0 || revT > 0) {
+  if (pw || yavOn || emirBoostT > 0 || emirPrayerT > 0 || revT > 0 || fogT > 0 || speedT > 0 || stunT > 0 || shieldT > 0) {
     const parts = [];
     if (pw) parts.push((pw === 'turbo' ? 'DERS BOŞ ' : pw === 'exam' ? 'KONUŞMA SINAVI ' : 'POÇİ KAÇIŞI ') + Math.ceil(pwT) + 's');
     if (yavOn) parts.push('YAVUZ ' + Math.ceil(yav.t) + 's');
     if (emirPrayerT > 0) parts.push('NAMAZ MOLASI ' + Math.ceil(emirPrayerT) + 's');
     if (emirBoostT > 0) parts.push('İMAN GÜCÜ ' + Math.ceil(emirBoostT) + 's');
     if (revT > 0) parts.push('TERS KONTROL ' + Math.ceil(revT) + 's');
+    if (fogT > 0) parts.push('SİS ' + Math.ceil(fogT) + 's');
+    if (speedT > 0) parts.push('HIZLANDIN ' + Math.ceil(speedT) + 's');
+    if (stunT > 0) parts.push('SERSEMLEDİN ' + Math.ceil(stunT) + 's');
+    if (shieldT > 0) parts.push('KALKAN ' + Math.ceil(shieldT) + 's');
     pe.hidden = false;
     pe.style.display = 'flex';
     pe.textContent = parts.join(' · ');
@@ -1472,6 +1549,22 @@ function drawObj(o) {
     g.restore();
     return;
   }
+  if (RARE_DEF[o.ty]) {
+    drawRare(o, p, x, far, o.ty, RARE_DEF[o.ty], '#d6e4ff', '#0b1226', '#e8f0ff');
+    if (o.ty === 'ezra') {                                    // eline aldığı sis topu (namlu ileriye bakar)
+      const hh = TYPES.ezra.h * p.sc;
+      g.save();
+      g.globalAlpha = far;
+      g.translate(x + hh * 0.2, p.y - hh * 0.46);
+      g.rotate(-0.12);
+      g.fillStyle = '#2a2f3a'; rr(-hh * 0.04, -hh * 0.3, hh * 0.08, hh * 0.34, hh * 0.015); g.fill();
+      g.fillStyle = '#6b7385'; rr(-hh * 0.055, -hh * 0.34, hh * 0.11, hh * 0.06, hh * 0.02); g.fill();
+      g.fillStyle = 'rgba(230,235,245,.8)';
+      g.beginPath(); g.arc(0, -hh * 0.4, hh * 0.05 + Math.sin(t * 6) * hh * 0.008, 0, 7); g.fill();
+      g.restore();
+    }
+    return;
+  }
   if (o.ty === 'niyazi') { drawRare(o, p, x, far, 'niyazi', 'NİYAZİ', '#ff8a3d', '#2a1206', '#ffb070'); return; }
   if (o.ty === 'mustafa') { drawRare(o, p, x, far, 'mustafa', 'MUSTAFA EYMEN', '#6bd0ff', '#06202e', '#9fe3ff'); return; }
   if (o.ty === 'yavuz') {
@@ -1626,6 +1719,12 @@ function drawPlayer() {
     g.restore();
   }
 
+  if (stunT > 0 && !fallen) {
+    for (let i = 0; i < 3; i++) {
+      const a = t * 6 + i * 2.1;
+      drawStar(x + Math.cos(a) * 70, y - 390 + Math.sin(a) * 18, 14, a);
+    }
+  }
   if (fallen) {
     for (let i = 0; i < 3; i++) {
       const a = t * 3 + i * 2.1;
@@ -3451,6 +3550,18 @@ function drawRare(o, p, x, far, spr, label, glow, strokeCol, fillCol) {
   g.restore();
 }
 
+/* ---------- Ezra Zeren'in sisi ---------- */
+function drawFog() {
+  if (fogT <= 0 || (st !== 'play' && st !== 'pause')) return;
+  const a = Math.min(1, (FOG_TIME - fogT) / 0.6, fogT / 0.8);
+  const gr = g.createLinearGradient(0, 0, 0, 670);
+  gr.addColorStop(0, 'rgba(205,214,228,' + (0.96 * a) + ')');
+  gr.addColorStop(0.55, 'rgba(205,214,228,' + (0.85 * a) + ')');
+  gr.addColorStop(1, 'rgba(205,214,228,0)');
+  g.fillStyle = gr;
+  g.fillRect(0, 0, W, 670);
+}
+
 /* ---------- Niyazi göbek atma ---------- */
 function drawBump() {
   if (bumpT <= 0) return;
@@ -3644,6 +3755,7 @@ function render(dt) {
     const near = vis.filter(o => o.d < 0);
     if (!boss) drawHouses();
     for (const o of far) drawObj(o);
+    drawFog();
     drawYavuz(false);
     const pp = drawPlayer();
     drawYavuz(true);
@@ -3787,7 +3899,7 @@ function openChars() {
     '<div class="char-grid">';
   for (const c of CHARS) {
     const have = owned(c.id), sel = prof.ch === c.id;
-    const avatar = c.spr === 'kosan' ? 'kosan.png' : c.spr === 'yavuz' ? 'yavuz.png' : 'merve.png';
+    const avatar = c.img || (c.spr === 'kosan' ? 'kosan.png' : c.spr === 'yavuz' ? 'yavuz.png' : 'merve.png');
     h += '<div class="char-card' + (sel ? ' selected' : '') + '">' +
       '<div class="char-art"><img src="assets/img/' + avatar + '" alt="' + c.name + '"></div>' +
       '<div class="char-info"><b>' + c.name + '</b><small>' + c.desc + '</small></div>' +
@@ -3928,7 +4040,7 @@ async function shareScore() {
 
 /* ---------- kayma · kalkan · rastgele olaylar ---------- */
 function slideReal() {
-  if (st !== 'play' || slideT > 0 || jumpT >= 0) return;
+  if (st !== 'play' || slideT > 0 || jumpT >= 0 || stunT > 0) return;
   slideT = 0.62;
   SFX.effect('slide');
   bump('slide');
@@ -3941,6 +4053,7 @@ function cleared(o) {
 function tryShield(o) {
   if (shield <= 0) return false;
   shield--;
+  shieldT = 0;
   o.dead = 1;
   inv = 1.6;
   flash = Math.max(flash, 0.5);
