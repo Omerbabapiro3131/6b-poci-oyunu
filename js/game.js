@@ -7,11 +7,12 @@ const YAV_TIME = 30, YAV_CHANCE = 0.025;
 const EMIR_PRAYER_TIME = 10, EMIR_BOOST_TIME = 6;
 const REV_TIME = 10, REV_SLOW = 0.6;            // Mustafa Eymen: ters kontrol süresi, yavaşlama çarpanı
 const NIYAZI_PUSH = 1000, BUMP_TIME = 1.8;
+const KORE_TIME = 20, KORE_SPEED = 1.3, KORE_HEART_TIME = 1.8;          // Cemre Beren: Kore modu süresi, zor mod hız çarpanı, kalp animasyonu
 const FOG_TIME = 7, SPEEDUP_TIME = 7, STUN_TIME = 1.8, SHIELD_TIME = 20;   // Ezra sis, Kutay hızlanma, Muhammed Ali sersemletme, Buğlem kalkan süresi
 const BUGRA_STEAL = 250, ELIF_GIVE = 250;                                     // Ahmet Buğra'nın çaldığı / Elif İrem'in verdiği 6/B (o anki koşunun parasından)
-const RARE_LIST = ['niyazi', 'mustafa', 'buglem', 'elif', 'ezra', 'kutay', 'bugra', 'muhammed'];   // Yavuz/Emir dışındaki nadir karakterler (her biri YAV_CHANCE)
+const RARE_LIST = ['niyazi', 'mustafa', 'buglem', 'elif', 'ezra', 'kutay', 'bugra', 'muhammed', 'cemre'];   // Yavuz/Emir dışındaki nadir karakterler (her biri YAV_CHANCE)
 const RARE_DEF = {
-  buglem: 'BUĞLEM', elif: 'ELİF İREM', ezra: 'EZRA ZEREN', kutay: 'KUTAY', bugra: 'AHMET BUĞRA', muhammed: 'MUHAMMED ALİ'
+  buglem: 'BUĞLEM', elif: 'ELİF İREM', ezra: 'EZRA ZEREN', kutay: 'KUTAY', bugra: 'AHMET BUĞRA', muhammed: 'MUHAMMED ALİ', cemre: 'CEMRE BEREN'
 };      // Niyazi: geri itme (m) ve animasyon süresi
 const JUMP_H = 260, JUMP_LEN = 0.72, YAV_JUMP_H = 640, YAV_JUMP_LEN = 0.98;
 const BOSS_EVERY = 6000, BOSS_HP = 5, BOSS_LIVES = 3, BOSS_REWARD = 30;
@@ -60,6 +61,7 @@ const IMG_SRC = {
   muhammed: 'assets/img/muhammed_ali.png',
   bugra: 'assets/img/ahmet_bugra.png',
   kutay: 'assets/img/kutay.png',
+  cemre: 'assets/img/cemre.png',
   merve: 'assets/img/merve.png',
   kid67: 'assets/img/kid67.png',
   scare: 'assets/img/jumpscare.jpg'
@@ -164,6 +166,7 @@ const TYPES = {
   kutay: { h: 340, pw: 'rare', avatar: 'kutay' },
   bugra: { h: 340, pw: 'rare', avatar: 'bugra' },
   muhammed: { h: 340, pw: 'rare', avatar: 'muhammed' },
+  cemre: { h: 340, pw: 'rare', avatar: 'cemre' },
   borb: { h: 130, pw: 'borb' },
   asma: { h: 120, hang: true },
   kid: { h: 300, pw: 'kid' }
@@ -183,6 +186,7 @@ let modeMusic = null, pwLoop = null, deathSnd = null, lastCoinSfx = 0;
 let yav = null, yavSnd = null, jumpHt = JUMP_H, jumpLen = JUMP_LEN;
 let emirPrayerT = 0, emirBoostT = 0, emirShoutT = 0;
 let revT = 0, fogT = 0, speedT = 0, stunT = 0, shieldT = 0;                                              // ters kontrol sayacı (Mustafa Eymen)
+let koreT = 0, koreHeartT = 0, koreBanner = 0, koreConf = [];                // Cemre Beren: Kore modu sayaçları
 let bumpT = 0, bumpTotal = 0, bumpLeft = 0, bumpRate = 0, bumpHit = false;   // Niyazi göbek atma
 let houses = [], houseAt = 0, ahmetPending = false;        // yol kenarı evler + Ahmet Deniz
 let boss = null, bossNext = BOSS_EVERY;
@@ -234,7 +238,7 @@ function resetRun() {
   objs = []; particles = [];
   lane = 0; px = 0; jumpT = -1; speed = 15.5; dist = 0; coins = 0; spawnAt = 18;
   stopYav(); emirPrayerT = 0; emirBoostT = 0; emirShoutT = 0; jumpHt = JUMP_H; jumpLen = JUMP_LEN;
-  revT = 0; fogT = 0; speedT = 0; stunT = 0; shieldT = 0; bumpT = 0; bumpLeft = 0; bumpHit = false; ahmetPending = false; houseAt = 6; seedHouses();
+  revT = 0; fogT = 0; speedT = 0; stunT = 0; shieldT = 0; koreT = 0; koreHeartT = 0; koreBanner = 0; bumpT = 0; bumpLeft = 0; bumpHit = false; ahmetPending = false; houseAt = 6; seedHouses();
   boss = null; bossNext = BOSS_EVERY;
   shield = prof.ch === 'merve' ? 1 : 0; slideT = 0; comboN = 0; lastCoinT = -9; ev = null; evNext = 30;
   kid = null; kidLift = 0; infaz = null; scare = null; stopInfazMusic();
@@ -278,7 +282,7 @@ function goMenu() {
   stopYav();
   boss = null;
   kid = null; kidLift = 0; infaz = null; scare = null; slideT = 0; stopInfazMusic(); refreshBadges();
-  revT = 0; fogT = 0; speedT = 0; stunT = 0; shieldT = 0; bumpT = 0; houses = [];
+  revT = 0; fogT = 0; speedT = 0; stunT = 0; shieldT = 0; koreT = 0; koreHeartT = 0; koreBanner = 0; bumpT = 0; houses = [];
   st = 'menu';
   caughtT = 0; chase = null; hitBy = null; offer = null;
   beat = null; beatOver = false;
@@ -331,10 +335,10 @@ function spawnRow(d) {
   }
   const lanes = [-1, 0, 1].sort(() => Math.random() - 0.5);
   const hard = Math.min(1, run / 2700);
-  const rareReady = !mode && !yav && run > 120 && revT <= 0 && bumpT <= 0 && !objs.some(o => (o.ty === 'yavuz' || o.ty === 'emir' || RARE_LIST.includes(o.ty)) && !o.dead);
+  const rareReady = !mode && koreT <= 0 && !yav && run > 120 && revT <= 0 && bumpT <= 0 && !objs.some(o => (o.ty === 'yavuz' || o.ty === 'emir' || RARE_LIST.includes(o.ty)) && !o.dead);
   const rareRoll = Math.random();
   const newRare = rareReady && rareRoll >= YAV_CHANCE * 2 && rareRoll < YAV_CHANCE * (2 + RARE_LIST.length);
-  const nObs = newRare ? 1 : (Math.random() < 0.32 + hard * 0.4 ? 2 : 1);   // yeni karakter satırı tek engelli: diğer şerit boş kalır
+  const nObs = newRare ? 1 : (Math.random() < (koreT > 0 ? 0.8 : 0.32 + hard * 0.4) ? 2 : 1);   // yeni karakter satırı tek engelli: diğer şerit boş kalır
   for (let i = 0; i < nObs; i++) {
     const r = Math.random();
     let ty;
@@ -527,12 +531,26 @@ function pickRare(ty) {
     flashMessage('AHMET BUĞRA -' + BUGRA_STEAL + ' 6/B ALDI!' + (coins < 0 ? ' PARAN EKSİDE!' : ''));
     SFX.effect('smash');
     shake = Math.max(shake, 0.5);
+  } else if (ty === 'cemre') {                             // Kore kalbi: 20 sn Kore modu (beyaz atmosfer, her yerde bayrak, daha zor)
+    pickCemre();
   } else if (ty === 'kutay') {                             // karışık: 7 sn %45 hız
     speedT = SPEEDUP_TIME;
     flashMessage('KUTAY HIZLANDIRDI!');
     SFX.effect('whoosh');
   }
   updateHud();
+}
+function pickCemre() {
+  if (mode) endMode();
+  koreT = KORE_TIME;
+  koreHeartT = KORE_HEART_TIME;
+  koreBanner = 2.6;
+  koreConf = [];
+  flashMessage('CEMRE BEREN KORE KALBİ YAPTI!');
+  SFX.effect('pickup');
+  flash = Math.max(flash, 0.5);
+  const p = proj(0);
+  spawnBurst(laneX(px, p), p.y - 160 * p.sc, 22, ['#ff4d79', '#ff9ec4', '#ffffff', '#cd2e3a', '#0047a0'], 640, 1000);
 }
 function pickMustafa() {
   revT = REV_TIME;
@@ -844,6 +862,12 @@ function updatePlay(dt) {
     if (revT === 0) flashMessage('KONTROLLER DÜZELDİ!');
   }
   if (fogT > 0) fogT = Math.max(0, fogT - dt);
+  if (koreHeartT > 0) koreHeartT = Math.max(0, koreHeartT - dt);
+  if (koreBanner > 0) koreBanner = Math.max(0, koreBanner - dt);
+  if (koreT > 0) {
+    koreT = Math.max(0, koreT - dt);
+    if (koreT === 0) { flashMessage('KORE MODU BİTTİ!'); updateHud(); }
+  }
   if (speedT > 0) speedT = Math.max(0, speedT - dt);
   if (stunT > 0) stunT = Math.max(0, stunT - dt);
   if (shieldT > 0) {
@@ -862,7 +886,7 @@ function updatePlay(dt) {
   if (emirShoutT > 0) emirShoutT = Math.max(0, emirShoutT - dt);
   if (comboN > 0 && t - lastCoinT >= COMBO_WINDOW) comboN = 0;
   if (boss) { updateBoss(dt); return; }
-  const sp = speed * (pw === 'turbo' ? 1.7 : 1) * (emirBoostT > 0 ? 2.35 : 1) * (ev ? ev.mul : 1) * (revT > 0 ? REV_SLOW : 1) * (speedT > 0 ? 1.45 : 1);
+  const sp = speed * (pw === 'turbo' ? 1.7 : 1) * (emirBoostT > 0 ? 2.35 : 1) * (ev ? ev.mul : 1) * (revT > 0 ? REV_SLOW : 1) * (speedT > 0 ? 1.45 : 1) * (koreT > 0 ? KORE_SPEED : 1);
   dist += sp * dt * (mode ? 2 : 1);
   run += sp * dt;
   speed = 15.5 + 15.5 * (1 - Math.exp(-run / 1500));
@@ -901,14 +925,14 @@ function updatePlay(dt) {
   spawnAt -= sp * dt;
   if (spawnAt <= 40) {
     spawnRow(46);
-    spawnAt = 46 + Math.max(7.5, 13.5 - run / 480);
+    spawnAt = (46 + Math.max(7.5, 13.5 - run / 480)) - (koreT > 0 ? 3 : 0);   // Kore modunda sıralar daha sık
   }
 
   if (mode) {
     mode.t += dt;
     $('modeClock').textContent = Math.max(1, Math.ceil(MODE_TIME - mode.t)) + ' SANİYE';
     if (mode.t >= MODE_TIME) endMode();
-  } else if (!mode && coins >= modeNext && pw !== 'exam') {
+  } else if (!mode && koreT <= 0 && coins >= modeNext && pw !== 'exam') {
     startMode();
   }
 
@@ -922,7 +946,7 @@ function updatePlay(dt) {
     SFX.effect('win');
   }
 
-  if (st === 'play' && !boss && !mode && dashLeft <= 0 && jumpT < 0 && dist >= bossNext) startBoss();
+  if (st === 'play' && !boss && !mode && koreT <= 0 && dashLeft <= 0 && jumpT < 0 && dist >= bossNext) startBoss();
 
   updateHud();
 }
@@ -1022,8 +1046,9 @@ function updateHud() {
   $('coinLabel').textContent = mode ? 'SENTA' : '6/B';
   const pe = $('pw');
   const yavOn = !!yav && yav.leave < 0;
-  if (pw || yavOn || emirBoostT > 0 || emirPrayerT > 0 || revT > 0 || fogT > 0 || speedT > 0 || stunT > 0 || shieldT > 0) {
+  if (pw || yavOn || emirBoostT > 0 || emirPrayerT > 0 || revT > 0 || fogT > 0 || speedT > 0 || stunT > 0 || shieldT > 0 || koreT > 0) {
     const parts = [];
+    if (koreT > 0) parts.push('KORE MODU ' + Math.ceil(koreT) + 's');
     if (pw) parts.push((pw === 'turbo' ? 'DERS BOŞ ' : pw === 'exam' ? 'KONUŞMA SINAVI ' : 'POÇİ KAÇIŞI ') + Math.ceil(pwT) + 's');
     if (yavOn) parts.push('YAVUZ ' + Math.ceil(yav.t) + 's');
     if (emirPrayerT > 0) parts.push('NAMAZ MOLASI ' + Math.ceil(emirPrayerT) + 's');
@@ -1199,6 +1224,7 @@ function drawWorld() {
       g.fill();
     }
   }
+  if (koreT > 0) drawKoreWorld(topHalf, botHalf, off);
 }
 /* ---------- props ---------- */
 function drawProp(kind, x, feetY, h, alpha) {
@@ -1557,7 +1583,8 @@ function drawObj(o) {
     return;
   }
   if (RARE_DEF[o.ty]) {
-    drawRare(o, p, x, far, o.ty, RARE_DEF[o.ty], '#d6e4ff', '#0b1226', '#e8f0ff');
+    if (o.ty === 'cemre') drawRare(o, p, x, far, 'cemre', RARE_DEF.cemre, '#ff7aa8', '#3a0a1e', '#ffd0e0');
+    else drawRare(o, p, x, far, o.ty, RARE_DEF[o.ty], '#d6e4ff', '#0b1226', '#e8f0ff');
     if (o.ty === 'ezra') {                                    // eline aldığı sis topu (namlu ileriye bakar)
       const hh = TYPES.ezra.h * p.sc;
       g.save();
@@ -3734,6 +3761,219 @@ function drawEmirEffect() {
 }
 
 /* ---------- render ---------- */
+/* ---------- Cemre Beren · KORE MODU ---------- */
+// Güney Kore bayrağı (Taegukgi) bir kez çizilip önbelleğe alınır; her yerde ucuzca ölçeklenir.
+let koreFlagCv = null;
+function getKoreFlag() {
+  if (koreFlagCv) return koreFlagCv;
+  const w = 450, h = 300, c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const x = c.getContext('2d');
+  x.fillStyle = '#ffffff'; x.fillRect(0, 0, w, h);
+  x.strokeStyle = '#c9ced8'; x.lineWidth = 4; x.strokeRect(2, 2, w - 4, h - 4);
+  x.save();
+  x.translate(w / 2, h / 2);
+  x.rotate(-0.588);                                   // taeguk yaklaşık -33,7° eğik
+  const r = h / 4;
+  x.fillStyle = '#cd2e3a'; x.beginPath(); x.arc(0, 0, r, Math.PI, 0); x.fill();
+  x.fillStyle = '#0047a0'; x.beginPath(); x.arc(0, 0, r, 0, Math.PI); x.fill();
+  x.fillStyle = '#cd2e3a'; x.beginPath(); x.arc(-r / 2, 0, r / 2, 0, Math.PI * 2); x.fill();
+  x.fillStyle = '#0047a0'; x.beginPath(); x.arc(r / 2, 0, r / 2, 0, Math.PI * 2); x.fill();
+  x.restore();
+  // dört köşedeki üç çizgili semboller: [sol-üst ☰, sağ-üst ☵, sol-alt ☲, sağ-alt ☷]
+  const L = w * 0.16, T = w * 0.022, G = w * 0.022;
+  const tri = [[-1, -1, 'SSS'], [1, -1, 'BSB'], [-1, 1, 'SBS'], [1, 1, 'BBB']];
+  for (const [sx, sy, pat] of tri) {
+    x.save();
+    x.translate(w / 2 + sx * w * 0.285, h / 2 + sy * h * 0.285);
+    x.rotate(Math.atan2(sy * h, sx * w));
+    x.fillStyle = '#111';
+    for (let i = 0; i < 3; i++) {
+      const bx = (i - 1) * (T + G) - T / 2;
+      if (pat[i] === 'S') x.fillRect(bx, -L / 2, T, L);
+      else { x.fillRect(bx, -L / 2, T, L * 0.4); x.fillRect(bx, L * 0.1, T, L * 0.4); }
+    }
+    x.restore();
+  }
+  koreFlagCv = c;
+  return c;
+}
+// (x,y) bayrağın sol-üst köşesi değil MERKEZİ; w genişlik; sallanma için hafif eğrilik
+function drawKoreFlag(cx, cy, w, alpha, phase) {
+  const im = getKoreFlag(), h = w * 2 / 3;
+  g.save();
+  g.globalAlpha = alpha;
+  g.translate(cx, cy);
+  g.transform(1, Math.sin(phase) * 0.07, 0, 1, 0, 0);
+  g.drawImage(im, -w / 2, -h / 2, w, h);
+  g.restore();
+}
+function koreAlpha() {
+  if (koreT <= 0) return 0;
+  return clamp(Math.min((KORE_TIME - koreT) / 0.9, koreT / 0.9), 0, 1);
+}
+function drawKoreWorld(topHalf, botHalf, off) {
+  const ka = koreAlpha();
+  if (ka <= 0) return;
+  // beyaz atmosfer
+  g.fillStyle = 'rgba(250,251,255,' + (0.86 * ka) + ')';
+  g.fillRect(0, 0, W, H);
+  const sky = g.createLinearGradient(0, 0, 0, HOR + 80);
+  sky.addColorStop(0, 'rgba(255,255,255,' + (0.9 * ka) + ')');
+  sky.addColorStop(1, 'rgba(255,230,238,0)');
+  g.fillStyle = sky; g.fillRect(0, 0, W, HOR + 80);
+  // yol: açık gri, kenarlar kırmızı-mavi
+  g.beginPath();
+  g.moveTo(VP - topHalf, HOR); g.lineTo(VP + topHalf, HOR);
+  g.lineTo(VP + botHalf, H); g.lineTo(VP - botHalf, H);
+  g.closePath();
+  const road = g.createLinearGradient(0, HOR, 0, H);
+  road.addColorStop(0, 'rgba(236,239,246,' + (0.7 * ka) + ')');
+  road.addColorStop(1, 'rgba(205,211,224,' + (0.92 * ka) + ')');
+  g.fillStyle = road; g.fill();
+  g.lineWidth = 9;
+  g.globalAlpha = ka;
+  for (const side of [-1, 1]) {
+    g.strokeStyle = side < 0 ? '#cd2e3a' : '#0047a0';
+    g.beginPath(); g.moveTo(VP + side * topHalf, HOR); g.lineTo(VP + side * botHalf, H); g.stroke();
+  }
+  g.fillStyle = 'rgba(120,130,150,.55)';
+  for (const side of [-1, 1]) {
+    for (let k = 0; k < 34; k++) {
+      const d0 = k * 2.4 - (off % 2.4), d1 = d0 + 1.1;
+      if (d0 < -4.5) continue;
+      const a = proj(d0), b = proj(d1);
+      if (a.y < HOR || b.y > H + 60) continue;
+      const xa = VP + side * a.h / 3, xb = VP + side * b.h / 3;
+      const wa = 2 + 6 * a.s, wb = 2 + 6 * b.s;
+      g.beginPath();
+      g.moveTo(xa - wa, a.y); g.lineTo(xa + wa, a.y); g.lineTo(xb + wb, b.y); g.lineTo(xb - wb, b.y);
+      g.closePath(); g.fill();
+    }
+  }
+  g.globalAlpha = 1;
+  // ufukta dev bayrak
+  drawKoreFlag(VP, HOR - 170, 540, ka, t * 2);
+  // yol kenarında direkler + bayraklar (uzaktan yakına)
+  const sp = 7;
+  for (let k = 7; k >= 0; k--) {
+    const d = k * sp - (off % sp);
+    if (d < 0.4) continue;
+    const p = proj(d);
+    if (p.y < HOR + 4) continue;
+    const far = clamp((p.y - HOR) / 60, 0, 1) * ka;
+    for (const side of [-1, 1]) {
+      const px0 = VP + side * 1.12 * p.h;
+      const ph = 360 * p.sc, fw = 250 * p.sc;
+      g.save();
+      g.globalAlpha = far;
+      g.strokeStyle = '#8f96a6'; g.lineWidth = Math.max(2, 11 * p.sc); g.lineCap = 'round';
+      g.beginPath(); g.moveTo(px0, p.y); g.lineTo(px0, p.y - ph); g.stroke();
+      g.restore();
+      drawKoreFlag(px0 - side * fw / 2, p.y - ph + fw / 3, fw, far, t * 4 + d + side);
+    }
+  }
+}
+function drawKoreOverlay(dt) {
+  const ka = koreAlpha();
+  if (ka <= 0) return;
+  // yukarıdan süzülen bayraklar
+  while (koreConf.length < 26) {
+    koreConf.push({ x: Math.random() * W, y: -80 - Math.random() * H, w: 50 + Math.random() * 60, vy: 90 + Math.random() * 130, ph: Math.random() * 6.28, sw: 0.6 + Math.random() * 1.2, rot: (Math.random() - 0.5) * 0.9 });
+  }
+  for (const c of koreConf) {
+    c.y += c.vy * dt;
+    c.ph += dt * 3;
+    if (c.y > H + 80) { c.y = -80; c.x = Math.random() * W; }
+    const im = getKoreFlag(), h = c.w * 2 / 3;
+    g.save();
+    g.globalAlpha = 0.9 * ka;
+    g.translate(c.x + Math.sin(c.ph * c.sw) * 40, c.y);
+    g.rotate(c.rot + Math.sin(c.ph * c.sw) * 0.35);
+    g.drawImage(im, -c.w / 2, -h / 2, c.w, h);
+    g.restore();
+  }
+  // üstte bayrak ipi
+  g.save();
+  g.globalAlpha = ka;
+  g.strokeStyle = '#8f96a6'; g.lineWidth = 4;
+  g.beginPath();
+  for (let i = 0; i <= 20; i++) {
+    const x = i * W / 20, y = 150 + Math.sin(i / 20 * Math.PI) * 55;
+    if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+  }
+  g.stroke();
+  g.restore();
+  for (let i = 1; i < 20; i++) {
+    const x = i * W / 20, y = 150 + Math.sin(i / 20 * Math.PI) * 55;
+    drawKoreFlag(x, y + 22, 62, ka, t * 5 + i);
+  }
+  // "KORE MODU" yazısı
+  if (koreBanner > 0) {
+    const a = Math.min(1, koreBanner / 0.4) * ka;
+    const pop = 1 + 0.08 * Math.sin(t * 10);
+    g.save();
+    g.globalAlpha = a;
+    g.translate(W / 2, 420);
+    g.scale(pop, pop);
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '900 110px "Arial Black",system-ui,sans-serif';
+    g.lineWidth = 16; g.strokeStyle = '#ffffff'; g.fillStyle = '#cd2e3a';
+    g.strokeText('KORE MODU', 0, 0); g.fillText('KORE MODU', 0, 0);
+    g.font = '900 46px "Arial Black",system-ui,sans-serif';
+    g.lineWidth = 10; g.strokeStyle = '#ffffff'; g.fillStyle = '#0047a0';
+    g.strokeText('ZOR MOD · ' + KORE_TIME + ' SANİYE', 0, 82); g.fillText('ZOR MOD · ' + KORE_TIME + ' SANİYE', 0, 82);
+    g.restore();
+  }
+}
+// Cemre Beren çıkar, parmak kalbi yapar; kalp oyuncuya uçar ve patlar
+function drawKoreHeart() {
+  if (koreHeartT <= 0 || (st !== 'play' && st !== 'pause' && st !== 'hit')) return;
+  const u = 1 - koreHeartT / KORE_HEART_TIME;
+  const p = proj(0);
+  const x0 = laneX(px, p);
+  const arrive = clamp(u / 0.2, 0, 1), leave = clamp((u - 0.82) / 0.18, 0, 1);
+  const e = 1 - Math.pow(1 - arrive, 3);
+  const cx = x0 + 230 + (1 - e) * 600 + leave * 600;
+  const hh = 520, feet = p.y + 40 - Math.abs(Math.sin(t * 8)) * 10;
+  shadow(cx, p.y + 20, 300, 0.25 * (1 - leave));
+  g.save();
+  g.shadowColor = '#ff7aa8'; g.shadowBlur = 30;
+  drawSprite('cemre', cx, feet, hh, 1 - leave * 0.8, Math.sin(t * 9) * 0.04);
+  g.restore();
+  const im = IMG.cemre, sc = hh / (im && im.naturalHeight ? im.naturalHeight : 455);
+  const hx = cx - 10 * sc, hy = feet - 340 * sc;               // parmak kalbinin çıktığı yer (ellerin arası)
+  const fly = clamp((u - 0.3) / 0.35, 0, 1);
+  const tx = x0, ty = p.y - 230 * p.sc;
+  g.save();
+  if (u >= 0.2 && u < 0.65) {
+    const k = clamp((u - 0.2) / 0.1, 0, 1);
+    const bx = hx + (tx - hx) * fly, by = hy + (ty - hy) * fly - Math.sin(Math.PI * fly) * 90;
+    const s = (20 + 26 * Math.min(1, k * 1.3)) * (1 + 0.12 * Math.sin(t * 20)) * (1 - 0.3 * fly);
+    g.shadowColor = '#ff2d6b'; g.shadowBlur = 24;
+    drawHeart(bx, by, s, '#ff3d7a', '#ffffff');
+  }
+  if (u >= 0.65 && u < 0.95) {
+    const k = clamp((u - 0.65) / 0.12, 0, 1);
+    const pop = 1 + 0.35 * Math.sin(Math.PI * Math.min(1, k * 1.4));
+    g.globalAlpha = 1 - clamp((u - 0.85) / 0.1, 0, 1);
+    g.translate(W / 2, 560);
+    g.scale(pop, pop);
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '900 100px "Arial Black",system-ui,sans-serif';
+    g.lineWidth = 14; g.strokeStyle = '#ffffff'; g.fillStyle = '#ff3d7a';
+    g.strokeText('KORE KALBİ!', 0, 0); g.fillText('KORE KALBİ!', 0, 0);
+  }
+  g.restore();
+  if (u >= 0.65 && !koreHeartBurst) {
+    koreHeartBurst = true;
+    spawnBurst(tx, ty, 24, ['#ff3d7a', '#ff9ec4', '#ffffff', '#cd2e3a', '#0047a0'], 650, 900);
+    SFX.effect('pickup');
+  }
+  if (u < 0.1) koreHeartBurst = false;
+}
+let koreHeartBurst = false;
+
 function render(dt) {
   g.clearRect(0, 0, W, H);
   g.save();
@@ -3774,6 +4014,8 @@ function render(dt) {
       g.fillStyle = 'rgba(255,170,40,.07)';
       g.fillRect(0, 0, W, H);
     }
+    if (koreT > 0) drawKoreOverlay(dt);
+    drawKoreHeart();
     if (st === 'hit' || st === 'over') {
       drawHitActor(pp);
       drawCaught();
