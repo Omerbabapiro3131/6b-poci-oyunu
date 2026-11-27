@@ -486,13 +486,12 @@ function updateBump(dt) {
   updateHud();
 }
 function addRunCoins(n) {
-  // koşudaki parayı azaltır (ana cüzdana dokunmaz). Önce moddaki yıldızlar, sonra mod yıldız toplamı, en son coin. Gerçekte alınan miktarı döner.
+// koşudaki parayı azaltır (ana cüzdana dokunmaz). Önce moddaki yıldızlar, sonra mod yıldız toplamı, kalan coin'den düşer; para yetmezse coin eksiye düşer.
 function takeRunCoins(n) {
   let left = n;
   if (mode) { const t = Math.min(modeStars, left); modeStars -= t; left -= t; }
   if (left > 0) { const t = Math.min(modeStarsTotal, left); modeStarsTotal -= t; left -= t; }
-  if (left > 0) { const t = Math.min(coins, left); coins -= t; left -= t; }
-  return n - left;
+  coins -= left;
 }
   if (mode) modeStars += n; else coins += n;
 }
@@ -504,7 +503,7 @@ function pickRare(ty) {
     else { shield = 1; shieldT = SHIELD_TIME; flashMessage('BUĞLEM 20 SN KALKAN VERDİ!'); }
     SFX.effect('pickup');
   } else if (ty === 'elif') {                              // iyi: cüzdana +250 6/B
-    prof.wallet += ELIF_GIVE; saveProf();
+    addRunCoins(ELIF_GIVE);
     flashMessage('ELİF İREM +' + ELIF_GIVE + ' 6/B VERDİ!');
     SFX.effect('pickup');
     spawnBurst(laneX(px, p), p.y - 120 * p.sc, 16, ['#ffd23f', '#fff6c0', '#ff9d00'], 560, 900);
@@ -523,11 +522,12 @@ function pickRare(ty) {
       const q = proj(dd);
       spawnBurst(laneX(px, q), q.y - 60 * q.sc, 10, ['#e6ebf4', '#c8d0de', '#ffffff'], 260, 700);
     }
-  } else if (ty === 'bugra') {                             // kötü: cüzdandan 250 6/B çalar, yetmezse eksiye düşer
-    prof.wallet -= BUGRA_STEAL; saveProf();
-    flashMessage('AHMET BUĞRA -' + BUGRA_STEAL + ' 6/B ALDI!' + (prof.wallet < 0 ? ' CÜZDAN EKSİDE!' : ''));
-    SFX.effect('smash');
-    shake = Math.max(shake, 0.5);
+} else if (ty === 'bugra') {                             // kötü: koşudaki paradan 250 6/B çalar, yetmezse koşu parası eksiye düşer
+  takeRunCoins(BUGRA_STEAL);
+  flashMessage('AHMET BUĞRA -' + BUGRA_STEAL + ' 6/B ALDI!' + (coins < 0 ? ' PARAN EKSİDE!' : ''));
+  SFX.effect('smash');
+  shake = Math.max(shake, 0.5);
+}
   } else if (ty === 'kutay') {                             // karışık: 7 sn %45 hız
     speedT = SPEEDUP_TIME;
     flashMessage('KUTAY HIZLANDIRDI!');
