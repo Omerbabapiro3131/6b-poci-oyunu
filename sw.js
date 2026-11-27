@@ -19,7 +19,7 @@ const CORE = [
   './assets/img/yavuz.png',
   './assets/img/emir.png',
   './assets/img/niyazi.png',
-  './assets/img/mustafa_eymen.png',
+  './assets/img/yeni_mustafa_resmi.png',
   './assets/img/ahmet_deniz.png',
   './assets/img/ahmet_bugra.png',
   './assets/img/buglem.png',
