@@ -1,4 +1,4 @@
-const CACHE = 'sixb-run-v28';
+const CACHE = 'sixb-run-v29';
 
 const CORE = [
   './index.html',
@@ -21,6 +21,7 @@ const CORE = [
   './assets/img/niyazi.png',
   './assets/img/mustafa_eymen.png',
   './assets/img/ahmet_deniz.png',
+  './assets/img/ahmet_bugra.png',
   './assets/img/buglem.png',
   './assets/img/elif_irem.png',
   './assets/img/ezra_zeren.png',
