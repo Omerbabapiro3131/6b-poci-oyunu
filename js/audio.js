@@ -2,9 +2,9 @@ const SFX = (() => {
   const SRC = {
     lane: 'assets/audio/degistiren.mp3',
     mode: 'assets/audio/boostlu_poci.mp3',
-    ders: 'assets/audio/pexian.mp3',
+    ders: 'assets/audio/rockstarbradar.mp3',
     jole: 'assets/audio/jole_music.mp3',
-    alo: 'assets/audio/alo_arif.mp3',
+    alo: 'assets/audio/nefes_kahkaha.mp3',
     dikidis: 'assets/audio/dikidis.mp3',
     infazScare: 'assets/audio/infaz-jumpscare.mp3',
     yavuz: 'assets/audio/yavuz.mp3',
