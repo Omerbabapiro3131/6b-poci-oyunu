@@ -8,10 +8,10 @@ const EMIR_PRAYER_TIME = 10, EMIR_BOOST_TIME = 6;
 const REV_TIME = 10, REV_SLOW = 0.6;            // Mustafa Eymen: ters kontrol süresi, yavaşlama çarpanı
 const NIYAZI_PUSH = 1000, BUMP_TIME = 1.8;
 const FOG_TIME = 7, SPEEDUP_TIME = 7, STUN_TIME = 1.8, SHIELD_TIME = 20;   // Ezra sis, Kutay hızlanma, Muhammed Ali sersemletme, Buğlem kalkan süresi
-const BUGRA_STEAL = 250, ELIF_GIVE = 250;                                     // Ahmet Deniz'in çaldığı / Elif İrem'in verdiği 6/B (cüzdandan)
+const BUGRA_STEAL = 250, ELIF_GIVE = 250;                                     // Ahmet Buğra'nın çaldığı / Elif İrem'in verdiği 6/B (cüzdandan)
 const RARE_LIST = ['niyazi', 'mustafa', 'buglem', 'elif', 'ezra', 'kutay', 'bugra', 'muhammed'];   // Yavuz/Emir dışındaki nadir karakterler (her biri YAV_CHANCE)
 const RARE_DEF = {
-  buglem: 'BUĞLEM', elif: 'ELİF İREM', ezra: 'EZRA ZEREN', kutay: 'KUTAY', bugra: 'AHMET DENİZ', muhammed: 'MUHAMMED ALİ'
+  buglem: 'BUĞLEM', elif: 'ELİF İREM', ezra: 'EZRA ZEREN', kutay: 'KUTAY', bugra: 'AHMET BUĞRA', muhammed: 'MUHAMMED ALİ'
 };      // Niyazi: geri itme (m) ve animasyon süresi
 const JUMP_H = 260, JUMP_LEN = 0.72, YAV_JUMP_H = 640, YAV_JUMP_LEN = 0.98;
 const BOSS_EVERY = 6000, BOSS_HP = 5, BOSS_LIVES = 3, BOSS_REWARD = 30;
@@ -58,7 +58,7 @@ const IMG_SRC = {
   elif: 'assets/img/elif_irem.png',
   ezra: 'assets/img/ezra_zeren.png',
   muhammed: 'assets/img/muhammed_ali.png',
-  bugra: 'assets/img/ahmet_deniz.png',
+  bugra: 'assets/img/ahmet_bugra.png',
   kutay: 'assets/img/kutay.png',
   merve: 'assets/img/merve.png',
   kid67: 'assets/img/kid67.png',
@@ -87,7 +87,7 @@ const CHARS = [
   { id: 'kosan', name: 'METİN OKTAY', desc: 'KLASİK KOŞUCU · YETENEK YOK', cost: 0, spr: 'kosan', col: '#3b6bff' },
   { id: 'yavuz', name: 'YAVUZ', desc: 'ZIPLAMASI %25 DAHA YÜKSEK', cost: 150, spr: 'yavuz', col: '#c0162f' },
   { id: 'merve', name: 'MERVE MİNA', desc: 'HER KOŞUDA İLK ÇARPMAYI AFFEDER', cost: 250, spr: 'merve', col: '#d81b3c' },
-  { id: 'bugra', name: 'AHMET DENİZ', desc: 'KOSTÜM · HİÇBİR YETENEĞİ YOK · BİR İŞE YARAMAZ', cost: 14000, spr: 'bugra', img: 'ahmet_deniz.png', col: '#5aa0ff' }
+  { id: 'bugra', name: 'AHMET DENİZ', desc: 'KOSTÜM · HİÇBİR YETENEĞİ YOK · BİR İŞE YARAMAZ', cost: 14000, spr: 'ahmet', img: 'ahmet_deniz.png', col: '#5aa0ff' }
 ];
 const TRAILS = [
   { id: '', name: 'İZ YOK', cost: 0 },
@@ -517,7 +517,7 @@ function pickRare(ty) {
     }
   } else if (ty === 'bugra') {                             // kötü: cüzdandan 250 6/B çalar, yetmezse eksiye düşer
     prof.wallet -= BUGRA_STEAL; saveProf();
-    flashMessage('AHMET DENİZ -' + BUGRA_STEAL + ' 6/B ALDI!' + (prof.wallet < 0 ? ' CÜZDAN EKSİDE!' : ''));
+    flashMessage('AHMET BUĞRA -' + BUGRA_STEAL + ' 6/B ALDI!' + (prof.wallet < 0 ? ' CÜZDAN EKSİDE!' : ''));
     SFX.effect('smash');
     shake = Math.max(shake, 0.5);
   } else if (ty === 'kutay') {                             // karışık: 7 sn %45 hız
