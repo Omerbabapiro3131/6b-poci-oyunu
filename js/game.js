@@ -8,7 +8,7 @@ const EMIR_PRAYER_TIME = 10, EMIR_BOOST_TIME = 6;
 const REV_TIME = 10, REV_SLOW = 0.6;            // Mustafa Eymen: ters kontrol süresi, yavaşlama çarpanı
 const NIYAZI_PUSH = 1000, BUMP_TIME = 1.8;
 const FOG_TIME = 7, SPEEDUP_TIME = 7, STUN_TIME = 1.8, SHIELD_TIME = 20;   // Ezra sis, Kutay hızlanma, Muhammed Ali sersemletme, Buğlem kalkan süresi
-const BUGRA_STEAL = 250, ELIF_GIVE = 250;                                     // Ahmet Buğra'nın çaldığı / Elif İrem'in verdiği 6/B (cüzdandan)
+const BUGRA_STEAL = 250, ELIF_GIVE = 250;                                     // Ahmet Buğra'nın çaldığı / Elif İrem'in verdiği 6/B (o anki koşunun parasından)
 const RARE_LIST = ['niyazi', 'mustafa', 'buglem', 'elif', 'ezra', 'kutay', 'bugra', 'muhammed'];   // Yavuz/Emir dışındaki nadir karakterler (her biri YAV_CHANCE)
 const RARE_DEF = {
   buglem: 'BUĞLEM', elif: 'ELİF İREM', ezra: 'EZRA ZEREN', kutay: 'KUTAY', bugra: 'AHMET BUĞRA', muhammed: 'MUHAMMED ALİ'
@@ -486,14 +486,14 @@ function updateBump(dt) {
   updateHud();
 }
 function addRunCoins(n) {
+  if (mode) modeStars += n; else coins += n;
+}
 // koşudaki parayı azaltır (ana cüzdana dokunmaz). Önce moddaki yıldızlar, sonra mod yıldız toplamı, kalan coin'den düşer; para yetmezse coin eksiye düşer.
 function takeRunCoins(n) {
   let left = n;
   if (mode) { const t = Math.min(modeStars, left); modeStars -= t; left -= t; }
   if (left > 0) { const t = Math.min(modeStarsTotal, left); modeStarsTotal -= t; left -= t; }
   coins -= left;
-}
-  if (mode) modeStars += n; else coins += n;
 }
 function pickRare(ty) {
   const p = proj(0);
@@ -502,7 +502,7 @@ function pickRare(ty) {
     if (shield > 0) { flashMessage('KALKANIN ZATEN VAR!'); }
     else { shield = 1; shieldT = SHIELD_TIME; flashMessage('BUĞLEM 20 SN KALKAN VERDİ!'); }
     SFX.effect('pickup');
-  } else if (ty === 'elif') {                              // iyi: cüzdana +250 6/B
+  } else if (ty === 'elif') {                              // iyi: koşudaki paraya +250 6/B
     addRunCoins(ELIF_GIVE);
     flashMessage('ELİF İREM +' + ELIF_GIVE + ' 6/B VERDİ!');
     SFX.effect('pickup');
@@ -522,12 +522,11 @@ function pickRare(ty) {
       const q = proj(dd);
       spawnBurst(laneX(px, q), q.y - 60 * q.sc, 10, ['#e6ebf4', '#c8d0de', '#ffffff'], 260, 700);
     }
-} else if (ty === 'bugra') {                             // kötü: koşudaki paradan 250 6/B çalar, yetmezse koşu parası eksiye düşer
-  takeRunCoins(BUGRA_STEAL);
-  flashMessage('AHMET BUĞRA -' + BUGRA_STEAL + ' 6/B ALDI!' + (coins < 0 ? ' PARAN EKSİDE!' : ''));
-  SFX.effect('smash');
-  shake = Math.max(shake, 0.5);
-}
+  } else if (ty === 'bugra') {                             // kötü: koşudaki paradan 250 6/B çalar, yetmezse koşu parası eksiye düşer
+    takeRunCoins(BUGRA_STEAL);
+    flashMessage('AHMET BUĞRA -' + BUGRA_STEAL + ' 6/B ALDI!' + (coins < 0 ? ' PARAN EKSİDE!' : ''));
+    SFX.effect('smash');
+    shake = Math.max(shake, 0.5);
   } else if (ty === 'kutay') {                             // karışık: 7 sn %45 hız
     speedT = SPEEDUP_TIME;
     flashMessage('KUTAY HIZLANDIRDI!');
