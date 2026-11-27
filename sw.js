@@ -1,4 +1,4 @@
-const CACHE = 'sixb-run-v27';
+const CACHE = 'sixb-run-v28';
 
 const CORE = [
   './index.html',
@@ -15,7 +15,7 @@ const CORE = [
   './assets/img/sinif.jpg',
   './assets/img/yakalanmis.png',
   './assets/img/sigma_jane.webp',
-  './assets/img/ali_surucu.png',
+  './assets/img/ali_surucu.jpg',
   './assets/img/yavuz.png',
   './assets/img/emir.png',
   './assets/img/niyazi.png',
@@ -25,7 +25,6 @@ const CORE = [
   './assets/img/elif_irem.png',
   './assets/img/ezra_zeren.png',
   './assets/img/muhammed_ali.png',
-  './assets/img/ahmet_bugra.png',
   './assets/img/kutay.png',
   './assets/img/merve.png',
   './assets/img/kid67.png',
