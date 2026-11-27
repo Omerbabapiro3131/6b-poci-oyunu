@@ -15,7 +15,7 @@ const CORE = [
   './assets/img/sinif.jpg',
   './assets/img/yakalanmis.png',
   './assets/img/sigma_jane.webp',
-  './assets/img/sewete_abla.jpg',
+  './assets/img/ali_surucu.png',
   './assets/img/yavuz.png',
   './assets/img/emir.png',
   './assets/img/niyazi.png',
