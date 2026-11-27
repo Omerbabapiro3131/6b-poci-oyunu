@@ -46,7 +46,7 @@ const IMG_SRC = {
   poci: 'assets/img/poci.png',
   yakalanmis: 'assets/img/yakalanmis.png',
   exam: 'assets/img/sigma_jane.webp',
-  ders: 'assets/img/sewete_abla.jpg',
+  ders: 'assets/img/ali_surucu.jpg',
   sinif: 'assets/img/sinif.jpg',
   seyit: 'assets/img/seyit.png',
   yavuz: 'assets/img/yavuz.png',
