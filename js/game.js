@@ -486,6 +486,14 @@ function updateBump(dt) {
   updateHud();
 }
 function addRunCoins(n) {
+  // koşudaki parayı azaltır (ana cüzdana dokunmaz). Önce moddaki yıldızlar, sonra mod yıldız toplamı, en son coin. Gerçekte alınan miktarı döner.
+function takeRunCoins(n) {
+  let left = n;
+  if (mode) { const t = Math.min(modeStars, left); modeStars -= t; left -= t; }
+  if (left > 0) { const t = Math.min(modeStarsTotal, left); modeStarsTotal -= t; left -= t; }
+  if (left > 0) { const t = Math.min(coins, left); coins -= t; left -= t; }
+  return n - left;
+}
   if (mode) modeStars += n; else coins += n;
 }
 function pickRare(ty) {
