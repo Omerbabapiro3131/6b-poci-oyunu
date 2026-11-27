@@ -27,6 +27,7 @@ const CORE = [
   './assets/img/ezra_zeren.png',
   './assets/img/muhammed_ali.png',
   './assets/img/kutay.png',
+  './assets/img/cemre.png',
   './assets/img/merve.png',
   './assets/img/kid67.png',
   './assets/img/jumpscare.jpg',
